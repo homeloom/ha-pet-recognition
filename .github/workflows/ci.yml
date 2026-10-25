@@ -35,9 +35,10 @@ jobs:
       # The hygiene job reads the current pull request title and body.
       pull-requests: read
     with:
-      # Session links and noreply commit addresses of AI coding assistants.
-      # Keep only the domains of the assistants that contribute.
-      allowed-domains: anthropic.com claude.ai claude.com
+      # Session links and noreply commit addresses of AI coding assistants
+      # (keep only the domains of the assistants that contribute), and the
+      # host of the app's embedding model.
+      allowed-domains: anthropic.com claude.ai claude.com huggingface.co
       # The app's own runtime requirements, on top of the integration's.
       license-requirements: pet_recognition_engine/requirements.txt
     # Passes every secret: the denylist is the sum of the secrets whose names
@@ -78,18 +79,29 @@ jobs:
         with:
           python-version: "3.13"
 
+      # The app's requirements are locked with hashes, the test tools are not:
+      # pip only takes both kinds in separate runs.
       - name: Install dependencies
-        run: python -m pip install --requirement requirements.txt --requirement requirements_test.txt
+        run: |
+          python -m pip install --require-hashes --no-deps --requirement requirements.txt
+          python -m pip install --requirement requirements_test.txt
 
       - name: Run tests
         run: python -m pytest --cov-fail-under=95
+
+  # Lints the app and builds its image, which downloads and tests the real models.
+  app:
+    if: github.event.pull_request.draft != true
+    uses: homeloom/ci/.github/workflows/ha-app.yml@2866909ad55df5df35925bd666e10669aff82dbb # v0.1.0
+    with:
+      paths: '["pet_recognition_engine"]'
 
   report:
     name: Report
     # Always runs, so that a draft or cancelled run shows a failed Report
     # rather than a skipped one, which branch protection would count as passed.
     if: always()
-    needs: [hygiene, lint, tests, validate, engine]
+    needs: [hygiene, lint, tests, validate, engine, app]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     permissions: {}

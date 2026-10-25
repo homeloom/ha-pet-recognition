@@ -1,0 +1,9 @@
+# Only what the image needs: no tests, caches or coverage data.
+**/__pycache__
+**/*.pyc
+.coverage
+.pytest_cache
+tests
+pytest.ini
+requirements.in
+requirements_test.txt

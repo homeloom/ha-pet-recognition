@@ -1,0 +1,16 @@
+{
+  "detector": {
+    "id": "yolox-s@0.1.1rc0",
+    "file": "yolox_s.onnx",
+    "url": "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.onnx",
+    "size": 35858002,
+    "sha256": "c5c2d13e59ae883e6af3b45daea64af4833a4951c92d116ec270d9ddbe998063"
+  },
+  "embedder": {
+    "id": "dinov2-small@PENDING",
+    "file": "dinov2_small.onnx",
+    "url": "https://huggingface.co/onnx-community/dinov2-small-ONNX/resolve/PENDING/onnx/model.onnx",
+    "size": 1,
+    "sha256": "PENDING"
+  }
+}

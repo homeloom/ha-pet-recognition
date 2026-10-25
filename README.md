@@ -4,8 +4,8 @@ Tell which of your pets appears in pictures from Home Assistant, count their
 visits, and learn from your answers. Everything runs locally.
 
 > **Status: in development.** This version contains the recognition logic,
-> the engine app, the connection to the engine, and its health. Pets and
-> sources cannot be added yet.
+> the engine app, the connection to the engine and its health, and pets.
+> Sources cannot be added yet, so nothing is recognized yet.
 
 ## Setup
 
@@ -38,6 +38,28 @@ new key is entered.
 
 The diagnostics of the entry give the versions, the engine's limits and the
 kind of the last failure, without the engine's address or key.
+
+## Pets
+
+Add each pet with **Add pet** on the integration's page: a name, a species
+(cat, dog or bird), then photos. Upload photos, or take one now from a
+camera or image entity, where the pet is the only animal of its species:
+the engine crops the animal and turns it into an **example**. A few
+photos from different angles and lights are a good start. Photos where
+the engine finds no animal or several are refused, and so are near copies
+of an example.
+
+A pet's gear button (**Change pet**) adds photos, removes examples (shown
+with their pictures), or renames the pet. A pet without examples cannot be
+recognized, and a repair says so.
+
+Examples are kept in Home Assistant's storage, and their crops under
+`pet_recognition/` in the configuration directory, never in `www`. Each
+pet keeps at most 200 examples of the engine's model; when it is full, its
+oldest learned example makes room, and the photos you gave are never
+dropped. Deleting a pet or the integration deletes its examples. When the
+engine's model changes, the examples are embedded again from their crops,
+in the background, the photos you gave first.
 
 ## How it will work
 

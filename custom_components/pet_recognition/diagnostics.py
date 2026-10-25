@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntryState
@@ -9,7 +10,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.loader import async_get_integration
 
 from . import PetRecognitionConfigEntry
-from .const import DOMAIN
+from .const import CONF_SPECIES, DOMAIN
+from .core.matching import Example
+from .pets import pets
 
 
 async def async_get_config_entry_diagnostics(
@@ -29,6 +32,7 @@ async def async_get_config_entry_diagnostics(
             "engine": None,
         }
     coordinator = entry.runtime_data.coordinator
+    store = entry.runtime_data.examples
     info = coordinator.data
     error = coordinator.last_exception
     return {
@@ -48,4 +52,18 @@ async def async_get_config_entry_diagnostics(
         "failing_since": None
         if coordinator.failing_since is None
         else coordinator.failing_since.isoformat(),
+        # Numbered instead of named.
+        "pets": [
+            {
+                "pet": f"pet_{number}",
+                "species": subentry.data[CONF_SPECIES],
+                "examples": _count(store.gallery.of(key)),
+            }
+            for number, (key, subentry) in enumerate(pets(entry).items(), start=1)
+        ],
     }
+
+
+def _count(examples: list[Example]) -> dict[str, int]:
+    """The number of examples of each model."""
+    return dict(sorted(Counter(example.model for example in examples).items()))

@@ -18,3 +18,6 @@ All notable changes to this project are documented here. The format follows
   question is settled or expires.
 - Corrections: relabel a run, or answer a question without overriding the
   pictures recognised since, and pick the animal that becomes an example.
+- Engine: open pictures safely (JPEG, PNG and WebP, at most 40 megapixels,
+  EXIF orientation), find birds, cats and dogs with YOLOX, crop each animal
+  and embed it with DINOv2.

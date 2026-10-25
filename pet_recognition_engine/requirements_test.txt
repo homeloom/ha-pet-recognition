@@ -1,0 +1,5 @@
+# What the app's tests need on top of requirements.txt. onnx builds the small
+# models the tests run.
+onnx==1.23.2
+pytest==9.1.1
+pytest-cov==7.1.0

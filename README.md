@@ -4,7 +4,8 @@ Tell which of your pets appears in pictures from Home Assistant, count their
 visits, and learn from your answers. Everything runs locally.
 
 > **Status: in development.** This version only contains the recognition
-> logic, in plain Python. It cannot be set up in Home Assistant yet.
+> logic and the engine's model code. It cannot be set up in Home Assistant
+> yet.
 
 ## How it will work
 
@@ -28,7 +29,9 @@ visits, and learn from your answers. Everything runs locally.
 
 - `custom_components/pet_recognition/`: the Home Assistant integration. Its
   `core/` package is plain Python, with no Home Assistant import.
-- `pet_recognition_engine/` (to come): the app that runs the models.
+- `pet_recognition_engine/`: the app that runs the models. Its `pet_engine`
+  package finds the animals in a picture and embeds each of them; the server
+  and the app packaging are to come.
 
 The integration and the app share one version and are released together.
 

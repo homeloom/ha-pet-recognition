@@ -15,7 +15,7 @@ updates:
         patterns: ["*"]
 
   - package-ecosystem: pip
-    directory: /
+    directories: [/, /pet_recognition_engine]
     schedule:
       interval: weekly
     commit-message:

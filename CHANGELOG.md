@@ -16,3 +16,5 @@ All notable changes to this project are documented here. The format follows
 - Questions: when to ask who was at a source, once per unknown run, one
   learning question at a time while a pet has no example, and when a
   question is settled or expires.
+- Corrections: relabel a run, or answer a question without overriding the
+  pictures recognised since, and pick the animal that becomes an example.

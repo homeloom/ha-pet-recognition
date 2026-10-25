@@ -21,9 +21,10 @@ checked and released.
 
 1. Open an issue first for anything larger than a small fix, so the design
    can be agreed before the work starts.
-2. Create a branch and open the pull request as a **draft** right away. On
-   drafts only the quick hygiene checks run, which saves runner minutes while
-   the work is in progress and still catches personal data on every push.
+2. Create a branch and open the pull request as a **draft** right away. No
+   CI job runs on drafts, which saves runner minutes while the work is in
+   progress. Mark it ready for review once it is complete, so that CI runs
+   once.
 3. Give the pull request a [Conventional Commits](https://www.conventionalcommits.org/)
    title, such as `feat: add a sensor` or `fix(api): handle timeouts`. The
    title becomes the commit message when the pull request is squash merged.
@@ -42,6 +43,10 @@ secret.
   stay at or above 95 %. Code is only left out with
   `# pragma: no cover - <reason>` on the line, and lowering the threshold
   needs a written justification in the pull request.
+- Tests must not depend on the machine that runs them. Runners have no git
+  identity, no global git configuration and no secret, so run the suite
+  once with an empty `HOME`, `GIT_CONFIG_NOSYSTEM=1` and no `EMAIL` variable
+  before asking for a review.
 - Linting and formatting use Ruff with the configuration of the repository.
 - To run the tests locally, install the Home Assistant test plugin, which
   brings Home Assistant and pytest-cov, and the other test requirements,

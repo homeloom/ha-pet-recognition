@@ -7,7 +7,7 @@
   "config_flow": true,
   "documentation": "https://github.com/homeloom/ha-pet-recognition",
   "integration_type": "hub",
-  "iot_class": "local_push",
+  "iot_class": "local_polling",
   "issue_tracker": "https://github.com/homeloom/ha-pet-recognition/issues",
   "requirements": [],
   "version": "0.0.0"

@@ -275,7 +275,7 @@ async def test_crops_named_by_no_example_are_deleted_on_load(hass: HomeAssistant
 
 @pytest.mark.parametrize("example_id", ["../../secrets", "A" * 32, "0" * 31, "0" * 32 + "/x"])
 def test_crop_paths_are_only_for_example_ids(hass: HomeAssistant, example_id: str) -> None:
-    with pytest.raises(ValueError, match="not the ID of an example"):
+    with pytest.raises(ValueError, match="not the ID of a file"):
         ExampleStore(hass, ENTRY).crop_path(example_id)
 
 

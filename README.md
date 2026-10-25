@@ -61,6 +61,31 @@ dropped. Deleting a pet or the integration deletes its examples. When the
 engine's model changes, the examples are embedded again from their crops,
 in the background, the photos you gave first.
 
+## Sources
+
+Add each place where pets are seen with **Add source**: a name, a kind
+(feeder, water fountain, litter box, pet door or other), then one or more
+image entities, such as a feeder's snapshot. Choose the pets expected
+there, or none for every pet. The **Visits** section sets the gap between
+two visits (5 minutes), how late pictures may arrive (2 minutes; cloud
+devices may need more), and whether every picture shows a pet, which is
+on by default for a feeder or a litter box.
+
+Each new picture of these entities is sent to the engine, oldest first,
+one at a time. The picture an entity shows when its source is added is
+not new, and neither is a picture the source already has: an entity's
+state, the time of its last picture, must change, and the SHA-256 of the
+picture must differ from the pictures of the source, waiting or recorded.
+Pictures wait for the engine while it is busy or stopped, and survive a
+restart. A picture the engine cannot read, or fails on three times while
+it otherwise answers, is recorded as such and never blocks the others.
+
+Each picture is deleted once analyzed. What was found in it is kept in a
+journal in Home Assistant's storage, with the crop of each animal under
+`pet_recognition/` in the configuration directory, for 7 days and at most
+2000 pictures per source; at most 100 pictures wait for the engine.
+Deleting a source deletes its journal and crops.
+
 ## How it will work
 
 - **Pets** are declared in the Home Assistant UI, each with a few example

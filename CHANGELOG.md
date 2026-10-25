@@ -46,3 +46,10 @@ All notable changes to this project are documented here. The format follows
   each pet without examples, and examples are embedded again when the
   engine's model changes, the photos given by the user first; those are
   never dropped. Each pet has a device and an examples sensor.
+- Sources, added in the UI with a name, a kind, image entities, the pets
+  expected there and how visits form. Each new picture is queued for the
+  engine (the same picture twice or a change of attributes adds nothing,
+  and a restart takes nothing twice), analyzed one at a time with a growing
+  wait while the engine is busy or stopped, and recorded in a journal with
+  the pets it shows. Each picture is deleted once analyzed; the journal and
+  the crops of the animals are kept 7 days.

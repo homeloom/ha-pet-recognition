@@ -42,6 +42,8 @@ async def test_the_diagnostics_of_a_connected_engine(
         "last_error": None,
         "failing_since": None,
         "pets": [],
+        "sources": [],
+        "pending": 0,
     }
 
 
@@ -66,6 +68,8 @@ async def test_the_diagnostics_of_an_engine_that_stopped(
         "last_error": "EngineConnectionError",
         "failing_since": started.isoformat(),
         "pets": [],
+        "sources": [],
+        "pending": 0,
     }
     assert "engine.test" not in str(diagnostics)
     assert KEY not in str(diagnostics)

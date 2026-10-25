@@ -141,6 +141,90 @@
         "entry_not_loaded": "The integration is not loaded. Check that it is set up, then try again.",
         "reconfigure_successful": "The pet was changed."
       }
+    },
+    "source": {
+      "entry_type": "Source",
+      "initiate_flow": {
+        "user": "Add source",
+        "reconfigure": "Change source"
+      },
+      "step": {
+        "user": {
+          "title": "Add a source",
+          "description": "A source is a place where pets are seen, such as a feeder. Its pictures come next.",
+          "data": {
+            "name": "Name",
+            "kind": "Kind"
+          },
+          "data_description": {
+            "name": "How the source is shown, such as in notifications.",
+            "kind": "What the source is, for its defaults."
+          }
+        },
+        "pictures": {
+          "title": "Pictures of {source}",
+          "description": "Choose where the pictures of {source} come from. Pictures already shown are not analyzed, only new ones.",
+          "data": {
+            "entities": "Image entities",
+            "pets": "Expected pets"
+          },
+          "data_description": {
+            "entities": "Each new picture of these entities is analyzed.",
+            "pets": "The pets that may appear at this source. None chosen means every pet."
+          },
+          "sections": {
+            "advanced": {
+              "name": "Visits",
+              "data": {
+                "gap": "Gap between visits",
+                "late": "Lateness of pictures",
+                "every_picture_shows_a_pet": "Every picture shows a pet"
+              },
+              "data_description": {
+                "gap": "Pictures taken closer than this belong to the same visit.",
+                "late": "How long pictures may arrive after they were taken. Cloud devices may need more.",
+                "every_picture_shows_a_pet": "The source takes pictures only when a pet is there, so a visit where no animal is found counts as unknown."
+              }
+            }
+          }
+        },
+        "reconfigure": {
+          "title": "Change the source",
+          "data": {
+            "name": "Name",
+            "kind": "Kind",
+            "entities": "Image entities",
+            "pets": "Expected pets"
+          },
+          "data_description": {
+            "entities": "Each new picture of these entities is analyzed.",
+            "pets": "The pets that may appear at this source. None chosen means every pet."
+          },
+          "sections": {
+            "advanced": {
+              "name": "Visits",
+              "data": {
+                "gap": "Gap between visits",
+                "late": "Lateness of pictures",
+                "every_picture_shows_a_pet": "Every picture shows a pet"
+              },
+              "data_description": {
+                "gap": "Pictures taken closer than this belong to the same visit.",
+                "late": "How long pictures may arrive after they were taken. Cloud devices may need more.",
+                "every_picture_shows_a_pet": "The source takes pictures only when a pet is there, so a visit where no animal is found counts as unknown."
+              }
+            }
+          }
+        }
+      },
+      "error": {
+        "empty_name": "Enter a name.",
+        "entity_in_use": "One of these entities is already used by another source.",
+        "no_entity": "Choose at least one image entity."
+      },
+      "abort": {
+        "reconfigure_successful": "The source was changed."
+      }
     }
   },
   "entity": {
@@ -194,6 +278,15 @@
         "cat": "Cat",
         "dog": "Dog",
         "bird": "Bird"
+      }
+    },
+    "kind": {
+      "options": {
+        "feeder": "Feeder",
+        "water": "Water fountain",
+        "litter_box": "Litter box",
+        "pet_door": "Pet door",
+        "other": "Other"
       }
     }
   }

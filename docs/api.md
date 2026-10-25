@@ -94,7 +94,7 @@ Errors are JSON with a stable code:
 | 405 | `method_not_allowed` | The wrong method, with `Allow` |
 | 413 | `too_large` | A body of more than `max_bytes` |
 | 422 | `unreadable_image` | Not a JPEG, PNG or WebP, too many pixels, or damaged |
-| 503 | `busy` | Another picture is being analysed; try again after `Retry-After` seconds |
+| 503 | `busy` | Another picture is being analysed; try again after `Retry-After` seconds. The body is not read |
 | 500 | `internal_error` | The engine failed |
 
 The engine analyses one picture at a time. The integration queues its

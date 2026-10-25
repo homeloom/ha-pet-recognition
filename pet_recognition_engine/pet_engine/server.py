@@ -110,9 +110,7 @@ async def _errors(request: web.Request, handler: Handler) -> web.StreamResponse:
 async def _authenticate(request: web.Request, handler: Handler) -> web.StreamResponse:
     if request.path not in PUBLIC:
         scheme, _, token = request.headers.get("Authorization", "").partition(" ")
-        if scheme.lower() != "bearer" or not hmac.compare_digest(
-            token.strip().encode(), request.app[KEY]
-        ):
+        if scheme.lower() != "bearer" or not hmac.compare_digest(token.encode(), request.app[KEY]):
             raise ApiError(
                 401, "unauthorized", "Missing or wrong API key.", {"WWW-Authenticate": "Bearer"}
             )
@@ -152,6 +150,7 @@ async def _info(request: web.Request) -> web.Response:
 
 async def _analyze(request: web.Request) -> web.Response:
     settings = _settings(request.query)
+    _idle(request)
     data = await _picture(request)
     engine = request.app[ENGINE]
     result = await _run(
@@ -161,6 +160,7 @@ async def _analyze(request: web.Request) -> web.Response:
 
 
 async def _embed(request: web.Request) -> web.Response:
+    _idle(request)
     data = await _picture(request)
     embedder = request.app[ENGINE].embedder
     vector = await _run(request, lambda: embedder.embed(open_image(data)))
@@ -193,10 +193,16 @@ def _settings(query: Mapping[str, str]) -> AnalysisSettings:
         raise ApiError(400, "invalid_parameter", str(err)) from err
 
 
+def _idle(request: web.Request) -> None:
+    """Refuse a request while the engine is busy, before its picture is read."""
+    if request.app[LOCK].locked():
+        raise ApiError(503, "busy", "The engine is busy.", {"Retry-After": "1"})
+
+
 async def _run[T](request: web.Request, work: Callable[[], T]) -> T:
     lock = request.app[LOCK]
-    if lock.locked():
-        raise ApiError(503, "busy", "The engine is busy.", {"Retry-After": "1"})
+    # Checked again: another picture may have started while this one was read.
+    _idle(request)
     async with lock:
         try:
             return await asyncio.get_running_loop().run_in_executor(None, work)

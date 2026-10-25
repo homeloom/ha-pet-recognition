@@ -141,6 +141,7 @@ async def test_embed_embeds_the_whole_picture(client: TestClient) -> None:
         {"Authorization": KEY},
         {"Authorization": f"Basic {KEY}"},
         {"Authorization": f"Bearer {KEY}x"},
+        {"Authorization": f"Bearer  {KEY}"},
     ],
 )
 async def test_a_wrong_key_is_refused(client: TestClient, headers: dict[str, str]) -> None:
@@ -213,6 +214,9 @@ async def test_one_picture_is_analysed_at_a_time(
     assert busy.status == 503
     assert busy.headers["Retry-After"] == "1"
     assert check("error", await busy.json())["error"]["code"] == "busy"
+    # Refused before its body is read: an empty one would be a 400.
+    for path in ("/v1/analyze", "/v1/embed"):
+        assert (await client.post(path, data=b"", headers=AUTH)).status == 503
     release.set()
     assert (await first).status == 200
     assert (await client.post("/v1/embed", data=square(), headers=AUTH)).status == 200
@@ -251,3 +255,4 @@ async def test_redirects_are_not_turned_into_errors(aiohttp_client: Client, tmp_
     client = await aiohttp_client(app)
     response = await client.get("/moved", headers=AUTH, allow_redirects=False)
     assert response.status == 302
+    assert response.headers["Location"] == "/health"

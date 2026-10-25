@@ -31,9 +31,10 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # Test names say what they test.
 "tests/*" = ["D1", "S101"]
+"pet_recognition_engine/tests/*" = ["D1", "S101"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["custom_components"]
+known-first-party = ["custom_components", "pet_engine"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

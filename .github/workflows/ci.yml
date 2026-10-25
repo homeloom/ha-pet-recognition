@@ -37,6 +37,8 @@ jobs:
       # Session links and noreply commit addresses of AI coding assistants.
       # Keep only the domains of the assistants that contribute.
       allowed-domains: anthropic.com claude.ai claude.com
+      # The app's own runtime requirements, on top of the integration's.
+      license-requirements: pet_recognition_engine/requirements.txt
     # Passes every secret: the denylist is the sum of the secrets whose names
     # start with PRIVACY_DENYLIST, and only the checks' own code reads them.
     secrets: inherit
@@ -53,6 +55,34 @@ jobs:
     if: github.event.pull_request.draft != true
     uses: homeloom/ci/.github/workflows/ha-integration.yml@a0f76324c11738e82bb44b61c2f4746d750cb3b0 # v0.1.1
 
+  # The app's Python package, tested with small generated models. The real
+  # models are only downloaded when the app is built.
+  engine:
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: pet_recognition_engine
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: python -m pip install --requirement requirements.txt --requirement requirements_test.txt
+
+      - name: Run tests
+        run: python -m pytest --cov-fail-under=95
+
   report:
     name: Report
     # Runs after failed or cancelled jobs too, so that it fails with them
@@ -60,7 +90,7 @@ jobs:
     # Skipped on drafts like every job: GitHub never merges a draft, and
     # marking it ready for review starts a full run.
     if: ${{ always() && github.event.pull_request.draft != true }}
-    needs: [hygiene, lint, tests, validate]
+    needs: [hygiene, lint, tests, validate, engine]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     permissions: {}

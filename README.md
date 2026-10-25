@@ -3,8 +3,21 @@
 Tell which of your pets appears in pictures from Home Assistant, count their
 visits, and learn from your answers. Everything runs locally.
 
-> **Status: in development.** This version contains the recognition logic
-> and the engine app. The integration cannot be set up in Home Assistant yet.
+> **Status: in development.** This version contains the recognition logic,
+> the engine app, and the connection to the engine. Pets and sources cannot
+> be added yet.
+
+## Setup
+
+1. Install the **Pet Recognition Engine** app (see its documentation), or
+   run its image with Docker.
+2. Install the integration and restart Home Assistant.
+3. Under the Supervisor, Home Assistant discovers the engine: confirm it in
+   **Settings**, **Devices & services**. Otherwise, add **Pet Recognition**
+   there and enter the engine's URL and API key.
+
+The engine's address and key can be changed later with **Reconfigure**.
+When the engine refuses its key, Home Assistant asks for the new one.
 
 ## How it will work
 

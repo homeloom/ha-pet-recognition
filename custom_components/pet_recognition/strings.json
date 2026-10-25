@@ -151,28 +151,42 @@
       "step": {
         "user": {
           "title": "Add a source",
-          "description": "A source is a place where pets are seen, such as a feeder. Its pictures come next.",
+          "description": "A source is a place where pets are seen, such as a feeder, and the image or camera entities that show it.",
           "data": {
             "name": "Name",
-            "kind": "Kind"
+            "kind": "Kind",
+            "entities": "Image or camera entities"
           },
           "data_description": {
             "name": "How the source is shown, such as in notifications.",
-            "kind": "What the source is, for its defaults."
+            "kind": "What the source is, for its defaults.",
+            "entities": "Each new picture of an image entity is analyzed. A camera takes pictures when its trigger fires."
           }
         },
-        "pictures": {
-          "title": "Pictures of {source}",
-          "description": "Choose where the pictures of {source} come from. Pictures already shown are not analyzed, only new ones.",
+        "details": {
+          "title": "Details of {source}",
+          "description": "Choose the pets of {source}. Pictures already shown are not analyzed, only new ones.",
           "data": {
-            "entities": "Image entities",
             "pets": "Expected pets"
           },
           "data_description": {
-            "entities": "Each new picture of these entities is analyzed.",
             "pets": "The pets that may appear at this source. None chosen means every pet."
           },
           "sections": {
+            "camera": {
+              "name": "Cameras",
+              "description": "Cameras take pictures only when their trigger fires.",
+              "data": {
+                "trigger": "Trigger",
+                "frames": "Pictures per trigger",
+                "interval": "Interval"
+              },
+              "data_description": {
+                "trigger": "A motion sensor or an event entity. Each time it turns on, or a new event comes, the cameras take pictures.",
+                "frames": "How many pictures each camera takes when the trigger fires.",
+                "interval": "The time between two pictures of the same camera."
+              }
+            },
             "advanced": {
               "name": "Visits",
               "data": {
@@ -193,14 +207,28 @@
           "data": {
             "name": "Name",
             "kind": "Kind",
-            "entities": "Image entities",
+            "entities": "Image or camera entities",
             "pets": "Expected pets"
           },
           "data_description": {
-            "entities": "Each new picture of these entities is analyzed.",
+            "entities": "Each new picture of an image entity is analyzed. A camera takes pictures when its trigger fires.",
             "pets": "The pets that may appear at this source. None chosen means every pet."
           },
           "sections": {
+            "camera": {
+              "name": "Cameras",
+              "description": "Cameras take pictures only when their trigger fires.",
+              "data": {
+                "trigger": "Trigger",
+                "frames": "Pictures per trigger",
+                "interval": "Interval"
+              },
+              "data_description": {
+                "trigger": "A motion sensor or an event entity. Each time it turns on, or a new event comes, the cameras take pictures.",
+                "frames": "How many pictures each camera takes when the trigger fires.",
+                "interval": "The time between two pictures of the same camera."
+              }
+            },
             "advanced": {
               "name": "Visits",
               "data": {
@@ -220,7 +248,8 @@
       "error": {
         "empty_name": "Enter a name.",
         "entity_in_use": "One of these entities is already used by another source.",
-        "no_entity": "Choose at least one image entity."
+        "no_entity": "Choose at least one image or camera entity.",
+        "trigger_needed": "Choose a trigger for the cameras."
       },
       "abort": {
         "reconfigure_successful": "The source was changed."
@@ -233,9 +262,41 @@
         "name": "Engine"
       }
     },
+    "image": {
+      "last_picture": {
+        "name": "Last picture"
+      }
+    },
     "sensor": {
       "examples": {
         "name": "Examples"
+      },
+      "last_seen": {
+        "name": "Last seen",
+        "state_attributes": {
+          "source": {
+            "name": "Source"
+          },
+          "confidence": {
+            "name": "Confidence"
+          }
+        }
+      },
+      "last_visitor": {
+        "name": "Last visitor",
+        "state": {
+          "several": "Several pets",
+          "unknown_animal": "Unknown animal",
+          "other_animal": "Other animal"
+        },
+        "state_attributes": {
+          "pets": {
+            "name": "Pets"
+          }
+        }
+      },
+      "pending_pictures": {
+        "name": "Pending pictures"
       }
     }
   },
@@ -270,6 +331,32 @@
     "pet_without_examples": {
       "title": "{pet} has no examples",
       "description": "{pet} cannot be recognized without photos. Open the integration, select the gear button of {pet} (**Change pet**), and add photos where it is the only animal."
+    },
+    "source_entity_missing": {
+      "title": "{source} lost an entity",
+      "fix_flow": {
+        "step": {
+          "entities": {
+            "title": "Entities of {source}",
+            "description": "Home Assistant no longer knows {entities}. Choose the image or camera entities {source} uses now, and a trigger if one of them is a camera.",
+            "data": {
+              "entities": "Image or camera entities",
+              "trigger": "Trigger of the cameras"
+            },
+            "data_description": {
+              "trigger": "Needed when a camera is chosen."
+            }
+          }
+        },
+        "error": {
+          "entity_in_use": "One of these entities is already used by another source.",
+          "no_entity": "Choose at least one image or camera entity.",
+          "trigger_needed": "Choose a trigger for the cameras."
+        },
+        "abort": {
+          "source_removed": "The source was removed."
+        }
+      }
     }
   },
   "selector": {

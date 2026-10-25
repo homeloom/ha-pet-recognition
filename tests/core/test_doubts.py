@@ -95,12 +95,23 @@ def test_a_run_is_asked_about_only_once() -> None:
     assert ask(pictures, now, asked, learned=True) == []
 
 
+def test_a_run_is_not_asked_again_when_a_later_picture_of_it_was_asked() -> None:
+    pictures = [pic("a", 0), pic("b", 1)]
+    assert ask(pictures, START + 3600, [doubt("b")], learned=True) == []
+
+
 def test_runs_are_asked_about_oldest_first() -> None:
     pictures = [pic("b", 20), pic("a", 0)]
     assert [question.run.id for question in ask(pictures, START + 3600, learned=True)] == [
         "a",
         "b",
     ]
+
+
+def test_visits_given_out_of_order_are_asked_about_oldest_first() -> None:
+    visits = group([pic("a", 0), pic("b", 20)], VISITS)
+    found = questions("feeder", reversed(visits), [], START + 3600, VISITS, SETTINGS, learned=True)
+    assert [question.run.id for question in found] == ["a", "b"]
 
 
 def test_while_learning_one_question_is_open_per_source() -> None:
@@ -155,10 +166,32 @@ def test_a_label_inherited_from_outside_the_question_does_not_settle_it() -> Non
     assert question.state is State.OPEN
 
 
+def test_a_run_told_from_outside_the_question_does_not_settle_its_animals() -> None:
+    # c takes pet_a from d, which the question was not about, while b is told.
+    question = doubt("b", "c")
+    pictures = [pic("b", 1, ("pet_b",)), pic("c", 2, resembles="pet_a"), pic("d", 3, ("pet_a",))]
+    assert review_after(pictures, question) == []
+    assert question.state is State.OPEN
+
+
 def test_a_head_in_the_bowl_follows_the_told_picture_of_its_run() -> None:
     question = doubt("b", "c")
     pictures = [pic("b", 1, corrected=True, pets=("pet_a",)), pic("c", 2, detections=0)]
     assert review_after(pictures, question) == [question]
+
+
+def test_a_head_in_the_bowl_is_told_by_any_run_with_pets() -> None:
+    # c, without an animal in sight, follows a, which the question was not about.
+    question = doubt("b", "c")
+    pictures = [pic("a", 0, ("pet_a",)), pic("c", 1, detections=0), pic("b", 2, ("pet_b",))]
+    assert review_after(pictures, question) == [question]
+
+
+def test_a_head_in_the_bowl_of_a_run_corrected_to_unknown_is_not_told() -> None:
+    question = doubt("b", "c")
+    pictures = [pic("b", 1, corrected=True), pic("c", 2, detections=0)]
+    assert review_after(pictures, question) == []
+    assert question.state is State.OPEN
 
 
 def test_an_animal_inheriting_from_a_picture_of_the_question_is_told() -> None:

@@ -1,0 +1,69 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connexion au moteur",
+        "description": "Saisissez l'adresse et la clé d'API du Pet Recognition Engine. Avec l'app du moteur sur Home Assistant OS, le moteur est en général découvert tout seul.",
+        "data": {
+          "url": "URL",
+          "api_key": "Clé d'API"
+        },
+        "data_description": {
+          "url": "L'adresse du moteur, par exemple http://docker-host:8765.",
+          "api_key": "La clé saisie dans l'option « Clé d'API » du moteur, ou sa variable API_KEY."
+        }
+      },
+      "hassio_confirm": {
+        "title": "Moteur trouvé",
+        "description": "Se connecter au Pet Recognition Engine de l'app {app} ?"
+      },
+      "reconfigure": {
+        "title": "Changer de moteur",
+        "description": "Saisissez la nouvelle adresse du moteur. Laissez la clé d'API vide pour garder l'actuelle.",
+        "data": {
+          "url": "URL",
+          "api_key": "Clé d'API"
+        },
+        "data_description": {
+          "url": "L'adresse du moteur, par exemple http://docker-host:8765.",
+          "api_key": "Une nouvelle clé, seulement si celle du moteur a changé."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Nouvelle clé d'API",
+        "description": "Le moteur à l'adresse {url} a refusé sa clé d'API. Saisissez la clé actuelle du moteur.",
+        "data": {
+          "api_key": "Clé d'API"
+        },
+        "data_description": {
+          "api_key": "La clé saisie dans l'option « Clé d'API » du moteur, ou sa variable API_KEY."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Le moteur est injoignable à cette adresse.",
+      "invalid_auth": "Le moteur a refusé cette clé d'API.",
+      "invalid_url": "Saisissez une adresse http ou https, par exemple http://docker-host:8765.",
+      "key_too_short": "La clé d'API compte au moins 16 caractères.",
+      "not_an_engine": "Cette adresse ne répond pas comme un Pet Recognition Engine d'une version prise en charge."
+    },
+    "abort": {
+      "already_configured": "Le moteur est déjà configuré.",
+      "already_in_progress": "Le moteur est déjà en cours de configuration.",
+      "invalid_discovery_info": "L'app du moteur a annoncé une adresse ou une clé inutilisable.",
+      "reauth_successful": "La nouvelle clé d'API fonctionne.",
+      "reconfigure_successful": "Le moteur a été changé."
+    }
+  },
+  "exceptions": {
+    "cannot_connect": {
+      "message": "Le Pet Recognition Engine est injoignable : {error}"
+    },
+    "invalid_auth": {
+      "message": "Le Pet Recognition Engine a refusé sa clé d'API."
+    },
+    "not_an_engine": {
+      "message": "L'adresse ne répond pas comme un Pet Recognition Engine d'une version prise en charge : {error}"
+    }
+  }
+}

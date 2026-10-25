@@ -29,3 +29,7 @@ All notable changes to this project are documented here. The format follows
   a sample picture checked against a reference embedding, its own API key,
   and an announcement through the Supervisor's discovery, which the
   integration's setup will use.
+- Connection to the engine, set up in the UI: discovered from the engine
+  app, or entered by hand, with reconfiguration and a new key when the
+  engine refuses the old one. Every answer of the engine is checked before
+  it is used.

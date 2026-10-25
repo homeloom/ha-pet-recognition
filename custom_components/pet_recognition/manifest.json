@@ -1,8 +1,10 @@
 {
   "domain": "pet_recognition",
   "name": "Pet Recognition",
-  "codeowners": ["@Vavouts"],
-  "config_flow": false,
+  "codeowners": [
+    "@Vavouts"
+  ],
+  "config_flow": true,
   "documentation": "https://github.com/homeloom/ha-pet-recognition",
   "integration_type": "hub",
   "iot_class": "local_push",

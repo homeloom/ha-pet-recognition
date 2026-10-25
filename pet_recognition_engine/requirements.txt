@@ -1,4 +1,4 @@
 # What the app needs to run. The app's image installs these.
 numpy==2.5.4
 onnxruntime==1.31.0
-pillow==12.3.0
+pillow==13.0.0

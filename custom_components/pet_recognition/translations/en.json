@@ -55,6 +55,13 @@
       "reconfigure_successful": "The engine was changed."
     }
   },
+  "entity": {
+    "binary_sensor": {
+      "engine": {
+        "name": "Engine"
+      }
+    }
+  },
   "exceptions": {
     "cannot_connect": {
       "message": "Cannot reach the Pet Recognition Engine: {error}"
@@ -64,6 +71,24 @@
     },
     "not_an_engine": {
       "message": "The address does not answer as a Pet Recognition Engine of a supported version: {error}"
+    }
+  },
+  "issues": {
+    "engine_unreachable": {
+      "title": "The Pet Recognition Engine does not answer",
+      "description": "The engine at {url} has not answered as a Pet Recognition Engine for a quarter of an hour, so no picture can be recognized. Check that the engine app or container runs, and that this is its address. If the engine moved, use **Reconfigure** on the integration."
+    },
+    "engine_incompatible": {
+      "title": "Update the Pet Recognition integration",
+      "description": "The engine at {url} no longer serves version {api} of the API, which this integration speaks. Update the integration to the release of the engine."
+    },
+    "engine_version_newer": {
+      "title": "The Pet Recognition Engine is newer than the integration",
+      "description": "The engine is release {engine} and the integration release {integration}. They still work together, but update the integration so that both are of the same release."
+    },
+    "engine_version_older": {
+      "title": "The Pet Recognition Engine is older than the integration",
+      "description": "The engine is release {engine} and the integration release {integration}. They still work together, but update the engine app or container so that both are of the same release."
     }
   }
 }

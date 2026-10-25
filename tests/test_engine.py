@@ -17,6 +17,7 @@ from custom_components.pet_recognition.engine import (
     EngineBusyError,
     EngineClient,
     EngineConnectionError,
+    EngineIncompatibleError,
     EngineRejectedError,
     EngineResponseError,
     engine_url,
@@ -81,6 +82,24 @@ async def test_info_that_is_not_of_an_engine_is_refused(
     aioclient_mock.get(f"{URL}/v1/info", json=body)
     with pytest.raises(EngineResponseError):
         await client.info()
+
+
+async def test_an_engine_without_this_api_is_told_apart(
+    client: EngineClient, aioclient_mock: AiohttpClientMocker
+) -> None:
+    # An engine that dropped version 1 answers that /v1/info is not found.
+    aioclient_mock.get(f"{URL}/v1/info", status=404, json=error("not_found", "Not Found"))
+    with pytest.raises(EngineIncompatibleError, match="does not serve API 1"):
+        await client.info()
+
+
+async def test_another_refusal_of_info_stays_a_refusal(
+    client: EngineClient, aioclient_mock: AiohttpClientMocker
+) -> None:
+    aioclient_mock.get(f"{URL}/v1/info", status=405, json=error("method_not_allowed"))
+    with pytest.raises(EngineRejectedError) as raised:
+        await client.info()
+    assert not isinstance(raised.value, EngineIncompatibleError)
 
 
 async def test_an_answer_that_is_not_json_is_refused(

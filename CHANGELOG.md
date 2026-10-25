@@ -33,3 +33,8 @@ All notable changes to this project are documented here. The format follows
   app, or entered by hand, with reconfiguration and a new key when the
   engine refuses the old one. Every answer of the engine is checked before
   it is used.
+- Engine health: an **Engine** connectivity sensor updated every minute,
+  repairs when the engine stops answering for a quarter of an hour, no
+  longer serves the integration's API version or is of another release, and
+  diagnostics without the engine's address or key. The entry now loads
+  while the engine is stopped.

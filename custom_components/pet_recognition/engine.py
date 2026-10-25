@@ -64,6 +64,18 @@ class EngineResponseError(EngineError):
     """The answer is not one of a Pet Recognition Engine of version 1."""
 
 
+class EngineIncompatibleError(EngineResponseError):
+    """The engine no longer serves this version of the API.
+
+    A change that breaks clients comes as a new version served next to the
+    old one, so an engine that answers that /v1/info is not found has dropped
+    version 1 and is newer than this integration.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(f"the engine does not serve API {API}")
+
+
 @dataclass(frozen=True)
 class EngineInfo:
     """What the engine is and accepts."""
@@ -125,7 +137,12 @@ class EngineClient:
 
     async def info(self) -> EngineInfo:
         """What the engine is, checked to be an engine of version 1."""
-        body = await self._request("GET", "v1/info", timeout=TIMEOUT)
+        try:
+            body = await self._request("GET", "v1/info", timeout=TIMEOUT)
+        except EngineRejectedError as err:
+            if err.code == "not_found":
+                raise EngineIncompatibleError from err
+            raise
         if _get(body, "api", int) != API:
             raise EngineResponseError(f"the engine speaks API {body.get('api')!r}, not {API}")
         # Species added by a newer engine are left out, as the API grows by additions.

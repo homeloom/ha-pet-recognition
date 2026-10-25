@@ -17,6 +17,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 from custom_components.pet_recognition.const import DOMAIN
 
 from .answers import KEY, URL, error, info
+from .common import configured
 
 APP_URL = "http://abc123-pet-recognition-engine:8765"
 NEW_KEY = "n" * 32
@@ -30,17 +31,6 @@ def discovery(**config: object) -> HassioServiceInfo:
         slug="abc123_pet_recognition_engine",
         uuid="0123456789abcdef0123456789abcdef",
     )
-
-
-def configured(hass: HomeAssistant, **data: str) -> MockConfigEntry:
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        unique_id=DOMAIN,
-        title="Pet Recognition",
-        data={CONF_URL: URL, CONF_API_KEY: KEY, **data},
-    )
-    entry.add_to_hass(hass)
-    return entry
 
 
 async def test_the_user_enters_the_url_and_the_key(

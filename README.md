@@ -4,8 +4,8 @@ Tell which of your pets appears in pictures from Home Assistant, count their
 visits, and learn from your answers. Everything runs locally.
 
 > **Status: in development.** This version contains the recognition logic,
-> the engine app, and the connection to the engine. Pets and sources cannot
-> be added yet.
+> the engine app, the connection to the engine, and its health. Pets and
+> sources cannot be added yet.
 
 ## Setup
 
@@ -18,6 +18,26 @@ visits, and learn from your answers. Everything runs locally.
 
 The engine's address and key can be changed later with **Reconfigure**.
 When the engine refuses its key, Home Assistant asks for the new one.
+
+## Engine health
+
+The integration asks the engine every minute whether it answers, even when
+its entities are disabled. The **Engine** connectivity sensor turns off
+while it does not, and the integration keeps loading: it does not need the
+engine to start. Repairs appear in **Settings**, **Repairs**:
+
+- when the engine has not answered as an engine for a quarter of an hour;
+- when the engine no longer serves the API version of the integration, which
+  then needs an update;
+- when the engine and the integration are of different releases, which
+  still work together but should be updated to the same one. Engines built
+  without a release version, such as development builds, are not compared.
+
+When the engine refuses its key, the integration stops asking it until the
+new key is entered.
+
+The diagnostics of the entry give the versions, the engine's limits and the
+kind of the last failure, without the engine's address or key.
 
 ## How it will work
 

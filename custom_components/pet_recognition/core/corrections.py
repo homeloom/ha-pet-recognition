@@ -8,9 +8,11 @@ animal of the picture shown to the user when it is alone in it, otherwise
 another picture of the run with a single animal.
 
 An answer to a question only covers the pictures of that question: a
-picture recognised on its own since the question was asked keeps its pet.
-The unknown pictures that joined the run since, and that no other question
-was about, follow the answer.
+picture recognised on its own since the question was asked, or corrected
+by hand to a pet since, keeps its pet, so a late tap never undoes a hand
+correction. The picture the user saw always follows the answer. The
+unknown pictures that joined the run since, that no other question was
+about and that were not corrected, follow the answer too.
 """
 
 from __future__ import annotations
@@ -87,13 +89,12 @@ def answer(
     kept = [runs[picture] for picture in doubt.pictures if picture in runs]
     if kept and settled(doubt, kept):
         return None
-    # A picture recognised on its own since the question keeps its pet,
-    # except the one the user saw.
+    # A picture recognised on its own or corrected to a pet since the
+    # question keeps its pet, except the one the user saw.
     mine = [
         picture
         for picture, _ in sorted(runs.values(), key=lambda item: _order(item[0]))
-        if picture.id in doubt.pictures
-        and (picture.id == doubt.shown or picture.corrected or not picture.pets)
+        if picture.id in doubt.pictures and (picture.id == doubt.shown or not picture.pets)
     ]
     if not mine:
         return None

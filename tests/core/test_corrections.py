@@ -27,8 +27,19 @@ def pic(
     *,
     detections: int = 1,
     resembles: str | None = None,
+    corrected_with: str = "",
 ) -> Picture:
-    return Picture(picture_id, "feeder", START + minutes * 60, detections, pets, resembles)
+    """A picture; `corrected_with` names the group of a correction by hand."""
+    return Picture(
+        picture_id,
+        "feeder",
+        START + minutes * 60,
+        detections,
+        pets,
+        resembles,
+        bool(corrected_with),
+        corrected_with,
+    )
 
 
 def question(*pictures: str, shown: str | None = None) -> Doubt:
@@ -83,6 +94,22 @@ def test_the_shown_picture_follows_the_answer_even_if_recognised_since() -> None
     assert correction == Correction(("b", "c"), ("pet_a",), "b", "c")
 
 
+def test_a_picture_corrected_by_hand_since_keeps_its_pet() -> None:
+    # b alone was corrected to pet_b since the question: a late tap on c
+    # leaves it.
+    pictures = [pic("b", 1, ("pet_b",), corrected_with="b"), pic("c", 2)]
+    asked = question("b", "c", shown="c")
+    correction = answer(asked, ["pet_a"], group(pictures, SETTINGS), [asked])
+    assert correction == Correction(("c",), ("pet_a",), "c", "c")
+
+
+def test_a_picture_corrected_to_unknown_since_follows_the_answer() -> None:
+    pictures = [pic("b", 1, corrected_with="b"), pic("c", 2)]
+    asked = question("b", "c", shown="c")
+    correction = answer(asked, ["pet_a"], group(pictures, SETTINGS), [asked])
+    assert correction == Correction(("b", "c"), ("pet_a",), "b", "c")
+
+
 def test_unknown_pictures_that_joined_the_run_follow_the_answer() -> None:
     # b was asked about; c and d came later and joined its unknown run; d
     # was asked about in another question, so it waits for its own answer.
@@ -91,6 +118,23 @@ def test_unknown_pictures_that_joined_the_run_follow_the_answer() -> None:
     asked, other = question("b"), question("d")
     correction = answer(asked, ["pet_a"], visits, [asked, other])
     assert correction == Correction(("b", "c"), ("pet_a",), "b", "b")
+
+
+def test_joiners_corrected_by_hand_keep_their_correction() -> None:
+    # b and c were corrected to unknown together by hand; only b, of the
+    # question, follows the answer.
+    pictures = [pic("b", 1, corrected_with="b"), pic("c", 2, corrected_with="b"), pic("x", 3)]
+    asked = question("b", "x")
+    correction = answer(asked, ["pet_a"], group(pictures, SETTINGS), [asked])
+    assert correction == Correction(("b", "x"), ("pet_a",), "b", "x")
+
+
+def test_the_pictures_of_an_answer_are_in_time_order() -> None:
+    # c joined the run of b, and comes before d, also of the question.
+    pictures = [pic("b", 1), pic("c", 2), pic("m", 3, ("pet_b",)), pic("d", 4)]
+    asked = question("b", "d")
+    correction = answer(asked, ["pet_a"], group(pictures, SETTINGS), [asked])
+    assert correction == Correction(("b", "c", "d"), ("pet_a",), "b", "d")
 
 
 def test_a_known_run_takes_no_joiners() -> None:
@@ -115,6 +159,13 @@ def test_an_answer_finds_its_shown_picture_again_when_the_notification_one_is_go
     correction = answer(asked, ["pet_a"], group(pictures, SETTINGS), [asked])
     assert correction is not None
     assert correction.example == "b"
+
+
+def test_a_missing_shown_picture_falls_back_to_the_last_with_an_animal() -> None:
+    pictures = [pic("b", 1), pic("c", 2), pic("d", 3, detections=0)]
+    asked = question("b", "c", "d", shown="gone")
+    correction = answer(asked, ["pet_a"], group(pictures, SETTINGS), [asked])
+    assert correction == Correction(("b", "c", "d"), ("pet_a",), "b", "c")
 
 
 def test_an_answer_about_pictures_that_are_gone_does_nothing() -> None:

@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/homeloom/ha-pet-recognition/docs/api-v1.schema.json",
+  "title": "Pet Recognition Engine API, version 1",
+  "description": "The bodies of the engine's answers. Version 1 only grows by additions: clients ignore unknown keys.",
+  "$defs": {
+    "health": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {"status": {"const": "ok"}}
+    },
+    "info": {
+      "type": "object",
+      "required": ["api", "version", "model", "species", "max_bytes", "max_pixels"],
+      "properties": {
+        "api": {"const": 1},
+        "version": {"type": "string", "minLength": 1},
+        "model": {"$ref": "#/$defs/model"},
+        "species": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/species"},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "max_bytes": {"type": "integer", "minimum": 1},
+        "max_pixels": {"type": "integer", "minimum": 1}
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "required": ["width", "height", "model", "animals"],
+      "properties": {
+        "width": {"type": "integer", "minimum": 1},
+        "height": {"type": "integer", "minimum": 1},
+        "model": {"$ref": "#/$defs/model"},
+        "animals": {"type": "array", "items": {"$ref": "#/$defs/animal"}}
+      }
+    },
+    "animal": {
+      "type": "object",
+      "required": ["species", "score", "box", "area", "crop", "embedding"],
+      "properties": {
+        "species": {"$ref": "#/$defs/species"},
+        "score": {"type": "number", "minimum": 0, "maximum": 1},
+        "box": {
+          "description": "x0, y0, x1, y1 in pixels of the picture, upright.",
+          "type": "array",
+          "items": {"type": "number", "minimum": 0},
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "area": {
+          "description": "The share of the picture the box covers.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "crop": {
+          "description": "The animal with a margin around it, as base64 JPEG.",
+          "type": "string",
+          "contentEncoding": "base64",
+          "contentMediaType": "image/jpeg",
+          "minLength": 1
+        },
+        "embedding": {"$ref": "#/$defs/embedding_vector"}
+      }
+    },
+    "embedding": {
+      "type": "object",
+      "required": ["model", "embedding"],
+      "properties": {
+        "model": {"$ref": "#/$defs/model"},
+        "embedding": {"$ref": "#/$defs/embedding_vector"}
+      }
+    },
+    "error": {
+      "type": "object",
+      "required": ["error"],
+      "properties": {
+        "error": {
+          "type": "object",
+          "required": ["code", "message"],
+          "properties": {
+            "code": {
+              "enum": [
+                "invalid_request",
+                "invalid_parameter",
+                "unauthorized",
+                "not_found",
+                "method_not_allowed",
+                "too_large",
+                "unreadable_image",
+                "busy",
+                "internal_error"
+              ]
+            },
+            "message": {"type": "string"}
+          }
+        }
+      }
+    },
+    "model": {
+      "description": "The embedding model and its version. Embeddings of different models cannot be compared.",
+      "type": "string",
+      "minLength": 1
+    },
+    "species": {"enum": ["bird", "cat", "dog"]},
+    "embedding_vector": {
+      "description": "A vector of length 1, up to rounding.",
+      "type": "array",
+      "items": {"type": "number", "minimum": -1, "maximum": 1},
+      "minItems": 1
+    }
+  }
+}

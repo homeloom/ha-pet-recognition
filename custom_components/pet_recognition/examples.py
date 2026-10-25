@@ -20,9 +20,6 @@ import asyncio
 import base64
 import logging
 import math
-import os
-import re
-import secrets
 import shutil
 import struct
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -38,6 +35,7 @@ from homeassistant.util.hass_dict import HassKey
 
 from .const import DOMAIN, EXAMPLE_LIMIT
 from .core.matching import Added, Example, Gallery, normalise
+from .files import FILE_ID, delete_files, delete_unknown_files, file_path, new_id, write_files
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,7 +44,7 @@ STORAGE_VERSION = 1
 DATA_STORES: HassKey[dict[str, ExampleStore]] = HassKey(f"{DOMAIN}_examples")
 
 # The ID of an example, and the name of its crop.
-EXAMPLE_ID = re.compile(r"[0-9a-f]{32}")
+EXAMPLE_ID = FILE_ID
 
 
 class Origin(StrEnum):
@@ -70,11 +68,6 @@ class Candidate:
     crop: bytes
     vector: tuple[float, ...]
     model: str
-
-
-def new_id() -> str:
-    """A random ID for an example."""
-    return secrets.token_hex(16)
 
 
 def data_directory(hass: HomeAssistant, entry_id: str) -> Path:
@@ -152,7 +145,12 @@ class ExampleStore:
             self._origins[example.id] = origin
         # The gallery checked them when they were added.
         self.gallery.restore(examples.values())
-        await self._hass.async_add_executor_job(self._delete_unknown_files)
+        await self._hass.async_add_executor_job(
+            delete_unknown_files,
+            self.directory,
+            ".jpg",
+            lambda name: self.gallery.get(name) is not None,
+        )
 
     def origin(self, example_id: str) -> Origin:
         """Where the example comes from."""
@@ -198,7 +196,9 @@ class ExampleStore:
         async with self._lock:
             # The crops are on disk before the gallery, and so the store, names them.
             await self._hass.async_add_executor_job(
-                self._write_crops, [(example.id, crop) for example, crop, _ in examples]
+                write_files,
+                self.directory,
+                [(self.crop_path(example.id), crop) for example, crop, _ in examples],
             )
             outcomes: list[Added] = []
             removed: list[Example] = []
@@ -262,9 +262,7 @@ class ExampleStore:
 
     def crop_path(self, example_id: str) -> Path:
         """The file of an example's crop, for an ID checked to be one."""
-        if not EXAMPLE_ID.fullmatch(example_id):
-            raise ValueError("not the ID of an example")
-        return self.directory / f"{example_id}.jpg"
+        return file_path(self.directory, example_id, ".jpg")
 
     async def _save_and_delete(self, removed: list[Example]) -> None:
         for example in removed:
@@ -292,33 +290,8 @@ class ExampleStore:
             ]
         }
 
-    def _write_crops(self, crops: list[tuple[str, bytes]]) -> None:
-        self.directory.mkdir(parents=True, exist_ok=True)
-        for example_id, crop in crops:
-            path = self.crop_path(example_id)
-            temporary = path.with_suffix(".tmp")
-            with temporary.open("wb") as file:
-                file.write(crop)
-                file.flush()
-                os.fsync(file.fileno())
-            temporary.replace(path)
-        # The new names are on disk too.
-        directory = os.open(self.directory, os.O_RDONLY)
-        try:
-            os.fsync(directory)
-        finally:
-            os.close(directory)
-
     def _delete_crops(self, example_ids: list[str]) -> None:
-        for example_id in example_ids:
-            self.crop_path(example_id).unlink(missing_ok=True)
-
-    def _delete_unknown_files(self) -> None:
-        if not self.directory.is_dir():
-            return
-        for path in self.directory.iterdir():
-            if path.is_file() and (path.suffix != ".jpg" or self.gallery.get(path.stem) is None):
-                path.unlink()
+        delete_files(self.crop_path(example_id) for example_id in example_ids)
 
 
 def _parse(record: Mapping[str, Any]) -> tuple[Example, Origin]:

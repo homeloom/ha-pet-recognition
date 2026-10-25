@@ -10,9 +10,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.loader import async_get_integration
 
 from . import PetRecognitionConfigEntry
-from .const import CONF_SPECIES, DOMAIN
+from .const import CONF_ENTITIES, CONF_KIND, CONF_SPECIES, DOMAIN
 from .core.matching import Example
 from .pets import pets
+from .sources import sources
 
 
 async def async_get_config_entry_diagnostics(
@@ -33,6 +34,7 @@ async def async_get_config_entry_diagnostics(
         }
     coordinator = entry.runtime_data.coordinator
     store = entry.runtime_data.examples
+    journal = entry.runtime_data.journal
     info = coordinator.data
     error = coordinator.last_exception
     return {
@@ -61,6 +63,19 @@ async def async_get_config_entry_diagnostics(
             }
             for number, (key, subentry) in enumerate(pets(entry).items(), start=1)
         ],
+        "sources": [
+            {
+                "source": f"source_{number}",
+                "kind": subentry.data[CONF_KIND],
+                "entities": len(subentry.data[CONF_ENTITIES]),
+                "pictures": dict(
+                    sorted(Counter(record.status.value for record in journal.of(source_id)).items())
+                ),
+                "pending": len(journal.pending(source_id)),
+            }
+            for number, (source_id, subentry) in enumerate(sources(entry).items(), start=1)
+        ],
+        "pending": len(journal.queue),
     }
 
 

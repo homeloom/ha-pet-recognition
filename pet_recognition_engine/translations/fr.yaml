@@ -1,0 +1,9 @@
+configuration:
+  api_key:
+    name: Clé d'API
+    description: >-
+      Laissez vide et le moteur crée sa propre clé pour l'intégration. Saisissez
+      une clé pour ajouter l'intégration à la main, et entrez la même clé dans
+      l'intégration.
+network:
+  8765/tcp: API du moteur, utile seulement sans le Supervisor

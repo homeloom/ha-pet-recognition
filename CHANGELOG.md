@@ -24,3 +24,8 @@ All notable changes to this project are documented here. The format follows
 - Engine API, version 1: `/health`, `/v1/info`, `/v1/analyze` and
   `/v1/embed`, with a bearer key, size limits, one picture at a time and JSON
   errors. The contract is in `docs/api.md` and `docs/api-v1.schema.json`.
+- Pet Recognition Engine app for the Supervisor: models downloaded from
+  pinned URLs and checked by SHA-256 when the image is built, a self-test on
+  a sample picture checked against a reference embedding, its own API key,
+  and an announcement through the Supervisor's discovery, which the
+  integration's setup will use.

@@ -1,0 +1,4 @@
+# The Supervisor reads this file when the repository is added as an app repository.
+name: Pet Recognition
+url: https://github.com/homeloom/ha-pet-recognition
+maintainer: homeloom

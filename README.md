@@ -3,8 +3,8 @@
 Tell which of your pets appears in pictures from Home Assistant, count their
 visits, and learn from your answers. Everything runs locally.
 
-> **Status: in development.** This version only contains the recognition
-> logic and the engine's code. It cannot be set up in Home Assistant yet.
+> **Status: in development.** This version contains the recognition logic
+> and the engine app. The integration cannot be set up in Home Assistant yet.
 
 ## How it will work
 
@@ -28,13 +28,16 @@ visits, and learn from your answers. Everything runs locally.
 
 - `custom_components/pet_recognition/`: the Home Assistant integration. Its
   `core/` package is plain Python, with no Home Assistant import.
-- `pet_recognition_engine/`: the app that runs the models. Its `pet_engine`
-  package finds the animals in a picture, embeds each of them, and serves
-  them over HTTP; the app packaging is to come.
+- `pet_recognition_engine/`: the app that runs the models, for the
+  Supervisor or Docker. Its `pet_engine` package finds the animals in a
+  picture, embeds each of them, and serves them over HTTP.
+- `repository.yaml`: makes this repository an app repository for the
+  Supervisor.
 - `docs/`: the API between the integration and the engine.
 
 The integration and the app share one version and are released together.
 
 ## License
 
-[MIT](LICENSE).
+[MIT](LICENSE). The models the app downloads have their own licenses: see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

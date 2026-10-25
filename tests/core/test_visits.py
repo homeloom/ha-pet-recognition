@@ -289,3 +289,28 @@ def test_an_empty_visit_has_no_pets() -> None:
 def test_settings_stay_in_range(gap: float, late: float) -> None:
     with pytest.raises(ValueError, match="gap"):
         VisitSettings(gap, late)
+
+
+def test_an_unsure_animal_prefers_the_run_before_it() -> None:
+    # Both neighbours hold the pet it resembles, in different runs.
+    assert runs_of(
+        pic("a", 0, ("A",)),
+        pic("b", 1, resembles="A"),
+        pic("c", 2, ("A", "B")),
+    ) == [(["a", "b"], ("A",)), (["c"], ("A", "B"))]
+
+
+def test_a_picture_corrected_to_a_pet_joins_the_pictures_of_that_pet() -> None:
+    # Only a correction to unknown is a screen.
+    assert runs_of(pic("a", 0, ("A",), corrected=True), pic("b", 1, ("A",))) == [
+        (["a", "b"], ("A",))
+    ]
+
+
+def test_a_visit_is_unsure_while_an_unknown_run_is_not_corrected() -> None:
+    (answered,) = group([pic("a", 0, ("A",)), pic("b", 1, corrected=True)], SETTINGS)
+    assert [run.unknown for run in answered.runs] == [False, True]
+    assert not answered.unsure
+    (asking,) = group([pic("a", 0, ("A",)), pic("b", 1)], SETTINGS)
+    assert [run.unknown for run in asking.runs] == [False, True]
+    assert asking.unsure

@@ -47,12 +47,17 @@ def test_each_animal_gets_its_crop_and_embedding(tmp_path: Path) -> None:
 
 
 def test_small_animals_and_other_species_are_left_out(tmp_path: Path) -> None:
+    # The dog is inside the picture, on 0.78 % of it.
     detector, embedder = models(
-        tmp_path, (2, 2, 30, 30, CAT, 0.9), (40, 40, 42, 42, DOG, 0.8), (34, 2, 62, 30, BIRD, 0.7)
+        tmp_path, (2, 2, 30, 30, CAT, 0.9), (40, 4, 44, 8, DOG, 0.8), (34, 2, 62, 30, BIRD, 0.7)
     )
-    settings = AnalysisSettings(min_area=0.01, species=frozenset({"cat", "dog"}))
+    species = frozenset({"cat", "dog"})
+    settings = AnalysisSettings(min_area=0.01, species=species)
     result = analyse(two_coloured(), detector, embedder, settings)
     assert [animal.species for animal in result.animals] == ["cat"]
+    smaller = AnalysisSettings(min_area=0.005, species=species)
+    result = analyse(two_coloured(), detector, embedder, smaller)
+    assert [animal.species for animal in result.animals] == ["cat", "dog"]
 
 
 def test_only_the_most_certain_animals_are_kept(tmp_path: Path) -> None:

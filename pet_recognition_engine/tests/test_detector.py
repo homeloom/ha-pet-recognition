@@ -94,6 +94,23 @@ def test_wild_outputs_never_give_infinite_or_invalid_boxes(tmp_path: Path) -> No
     assert [(d.species, d.box) for d in found] == [("cat", Box(0, 0, 64, 64))]
 
 
+def test_decoding_drops_invalid_boxes() -> None:
+    rows = rows_for((8, 8, 40, 40, CAT, 0.9), (44, 44, 60, 60, DOG, 0.95))
+    rows[np.flatnonzero(rows[:, 4])[1], 0] = np.nan
+    found = decode(rows, anchors(SIZE), 1.0, 0.35, 0.45)
+    assert [(d.species, d.box) for d in found] == [("cat", Box(8, 8, 40, 40))]
+
+
+def test_a_score_at_the_threshold_is_kept() -> None:
+    rows = rows_for((8, 8, 40, 40, CAT, 0.5))
+    assert [d.score for d in decode(rows, anchors(SIZE), 1.0, 0.5, 0.45)] == [0.5]
+
+
+def test_boxes_overlapping_exactly_at_the_threshold_are_both_kept() -> None:
+    boxes = np.array([[0, 0, 2, 1], [0, 0, 1, 1]], float)
+    assert suppress(boxes, np.array([0.9, 0.8]), 0.5) == [0, 1]
+
+
 def test_suppression_keeps_the_best_and_distinct_boxes() -> None:
     boxes = np.array([[0, 0, 10, 10], [1, 1, 11, 11], [20, 20, 30, 30], [5, 5, 5, 5]], float)
     scores = np.array([0.5, 0.9, 0.8, 0.95])

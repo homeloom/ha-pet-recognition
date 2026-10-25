@@ -104,6 +104,8 @@ def test_a_sliver_still_gives_a_pixel() -> None:
     image = Image.new("RGB", (100, 80))
     assert crop(image, Box(99.6, 40, 99.8, 40.1), margin=0).size == (1, 1)
     assert crop(image, Box(100, 80, 100, 80), margin=0).size == (1, 1)
+    # A sliver that rounds down on its right still keeps a pixel.
+    assert crop(image, Box(10.2, 10, 10.4, 10.6), margin=0).size == (1, 1)
 
 
 def test_crops_are_encoded_as_jpeg() -> None:

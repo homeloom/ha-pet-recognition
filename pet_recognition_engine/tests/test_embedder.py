@@ -39,6 +39,27 @@ def test_the_pooled_output_and_the_class_token_agree(tmp_path: Path) -> None:
     assert np.allclose(pooled, token)
 
 
+def test_the_pooled_output_comes_first_then_the_class_token(tmp_path: Path) -> None:
+    rng = np.random.default_rng(3)
+    weights, first, second = (rng.normal(size=(3, DIMENSIONS)) for _ in range(3))
+    image = Image.new("RGB", (80, 60), (20, 160, 90))
+    colour = preprocess(image).mean(axis=(2, 3))[0]
+    pooled = Embedder(
+        load(dinov2(tmp_path / "pooled.onnx", weights=weights, tokens=[first, second])), "m"
+    )
+    # The token output is listed first: the pooled output is still preferred.
+    assert pooled.output == "pooler_output"
+    assert np.allclose(pooled.embed(image), normalise(colour @ weights), atol=1e-4)
+    tokens = Embedder(
+        load(
+            dinov2(tmp_path / "tokens.onnx", weights=weights, tokens=[first, second], pooled=False)
+        ),
+        "m",
+    )
+    # Without it, the class token, not the mean of the tokens.
+    assert np.allclose(tokens.embed(image), normalise(colour @ first), atol=1e-4)
+
+
 def test_different_pictures_give_different_embeddings(tmp_path: Path) -> None:
     model = embedder(tmp_path / "dinov2.onnx")
     red = model.embed(Image.new("RGB", (32, 32), (220, 20, 20)))

@@ -82,25 +82,49 @@ def rows_for(*boxes: tuple[float, float, float, float, int, float], size: int = 
     return rows
 
 
-def dinov2(path: Path, *, pooled: bool = True, weights: np.ndarray | None = None) -> Path:
+def dinov2(
+    path: Path,
+    *,
+    pooled: bool = True,
+    weights: np.ndarray | None = None,
+    tokens: list[np.ndarray] | None = None,
+) -> Path:
     """A DINOv2 graph whose embedding is a linear map of the picture's mean colour.
 
     It names its outputs like the real export: last_hidden_state, then
-    pooler_output unless `pooled` is false.
+    pooler_output unless `pooled` is false. The pooled output maps the
+    colour with `weights`. Each token maps it with its own weights from
+    `tokens`; without them, there is one token, equal to the pooled output.
     """
     if weights is None:
         weights = np.random.default_rng(7).normal(size=(3, DIMENSIONS))
     w = numpy_helper.from_array(weights.astype(np.float32), "weights")
     axes = numpy_helper.from_array(np.array([1], np.int64), "axes")
+    initializers = [w, axes]
     nodes = [
         helper.make_node("GlobalAveragePool", ["pixel_values"], ["pooled_pixels"]),
         helper.make_node("Flatten", ["pooled_pixels"], ["colour"]),
         helper.make_node("MatMul", ["colour", "weights"], ["pooler_output"]),
-        helper.make_node("Unsqueeze", ["pooler_output", "axes"], ["last_hidden_state"]),
     ]
+    if tokens is None:
+        nodes.append(
+            helper.make_node("Unsqueeze", ["pooler_output", "axes"], ["last_hidden_state"])
+        )
+    else:
+        names = []
+        for index, token in enumerate(tokens):
+            initializers.append(numpy_helper.from_array(token.astype(np.float32), f"t{index}"))
+            nodes += [
+                helper.make_node("MatMul", ["colour", f"t{index}"], [f"token{index}"]),
+                helper.make_node("Unsqueeze", [f"token{index}", "axes"], [f"row{index}"]),
+            ]
+            names.append(f"row{index}")
+        nodes.append(helper.make_node("Concat", names, ["last_hidden_state"], axis=1))
     outputs = [
         helper.make_tensor_value_info(
-            "last_hidden_state", TensorProto.FLOAT, ["batch_size", 1, DIMENSIONS]
+            "last_hidden_state",
+            TensorProto.FLOAT,
+            ["batch_size", 1 if tokens is None else len(tokens), DIMENSIONS],
         )
     ]
     if pooled:
@@ -118,7 +142,7 @@ def dinov2(path: Path, *, pooled: bool = True, weights: np.ndarray | None = None
             )
         ],
         outputs,
-        [w, axes],
+        initializers,
     )
     return _save(graph, path)
 

@@ -142,7 +142,7 @@ def decode(
         centres = (output[keep, :2] + grid[keep]) * strides[keep]
         sizes = np.exp(np.minimum(output[keep, 2:4], 20.0)) * strides[keep]
         boxes = np.concatenate((centres - sizes / 2, centres + sizes / 2), axis=1) / scale
-    # A box with an invalid value would suppress every other one.
+    # A box with an invalid value is no animal: keep it out of the result.
     finite = np.isfinite(boxes).all(axis=1)
     keep, boxes = keep[finite], boxes[finite]
     return [

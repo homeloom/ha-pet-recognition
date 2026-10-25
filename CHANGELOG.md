@@ -13,3 +13,6 @@ All notable changes to this project are documented here. The format follows
 - Visits and runs: pictures of a source taken close together form a visit,
   unsure pictures inherit from their neighbours, and each pet counts once
   per visit on the day the visit started.
+- Questions: when to ask who was at a source, once per unknown run, one
+  learning question at a time while a pet has no example, and when a
+  question is settled or expires.

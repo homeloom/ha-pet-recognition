@@ -151,28 +151,42 @@
       "step": {
         "user": {
           "title": "Ajouter une source",
-          "description": "Une source est un endroit où l'on voit les animaux, comme une mangeoire. Ses photos viennent ensuite.",
+          "description": "Une source est un endroit où l'on voit les animaux, comme une mangeoire, et les entités image ou caméra qui le montrent.",
           "data": {
             "name": "Nom",
-            "kind": "Type"
+            "kind": "Type",
+            "entities": "Entités image ou caméra"
           },
           "data_description": {
             "name": "Le nom affiché de la source, par exemple dans les notifications.",
-            "kind": "Ce qu'est la source, pour ses réglages par défaut."
+            "kind": "Ce qu'est la source, pour ses réglages par défaut.",
+            "entities": "Chaque nouvelle photo d'une entité image est analysée. Une caméra prend des photos quand son déclencheur s'active."
           }
         },
-        "pictures": {
-          "title": "Photos de {source}",
-          "description": "Choisissez d'où viennent les photos de {source}. Les photos déjà affichées ne sont pas analysées, seulement les nouvelles.",
+        "details": {
+          "title": "Détails de {source}",
+          "description": "Choisissez les animaux de {source}. Les photos déjà affichées ne sont pas analysées, seulement les nouvelles.",
           "data": {
-            "entities": "Entités image",
             "pets": "Animaux attendus"
           },
           "data_description": {
-            "entities": "Chaque nouvelle photo de ces entités est analysée.",
             "pets": "Les animaux qui peuvent apparaître à cette source. Aucun choix signifie tous les animaux."
           },
           "sections": {
+            "camera": {
+              "name": "Caméras",
+              "description": "Les caméras ne prennent des photos que lorsque leur déclencheur s'active.",
+              "data": {
+                "trigger": "Déclencheur",
+                "frames": "Photos par déclenchement",
+                "interval": "Intervalle"
+              },
+              "data_description": {
+                "trigger": "Un détecteur de mouvement ou une entité événement. Chaque fois qu'il s'active, ou qu'un nouvel événement arrive, les caméras prennent des photos.",
+                "frames": "Combien de photos chaque caméra prend quand le déclencheur s'active.",
+                "interval": "Le temps entre deux photos d'une même caméra."
+              }
+            },
             "advanced": {
               "name": "Visites",
               "data": {
@@ -193,14 +207,28 @@
           "data": {
             "name": "Nom",
             "kind": "Type",
-            "entities": "Entités image",
+            "entities": "Entités image ou caméra",
             "pets": "Animaux attendus"
           },
           "data_description": {
-            "entities": "Chaque nouvelle photo de ces entités est analysée.",
+            "entities": "Chaque nouvelle photo d'une entité image est analysée. Une caméra prend des photos quand son déclencheur s'active.",
             "pets": "Les animaux qui peuvent apparaître à cette source. Aucun choix signifie tous les animaux."
           },
           "sections": {
+            "camera": {
+              "name": "Caméras",
+              "description": "Les caméras ne prennent des photos que lorsque leur déclencheur s'active.",
+              "data": {
+                "trigger": "Déclencheur",
+                "frames": "Photos par déclenchement",
+                "interval": "Intervalle"
+              },
+              "data_description": {
+                "trigger": "Un détecteur de mouvement ou une entité événement. Chaque fois qu'il s'active, ou qu'un nouvel événement arrive, les caméras prennent des photos.",
+                "frames": "Combien de photos chaque caméra prend quand le déclencheur s'active.",
+                "interval": "Le temps entre deux photos d'une même caméra."
+              }
+            },
             "advanced": {
               "name": "Visites",
               "data": {
@@ -220,7 +248,8 @@
       "error": {
         "empty_name": "Saisissez un nom.",
         "entity_in_use": "L'une de ces entités est déjà utilisée par une autre source.",
-        "no_entity": "Choisissez au moins une entité image."
+        "no_entity": "Choisissez au moins une entité image ou caméra.",
+        "trigger_needed": "Choisissez un déclencheur pour les caméras."
       },
       "abort": {
         "reconfigure_successful": "La source a été modifiée."
@@ -233,9 +262,41 @@
         "name": "Moteur"
       }
     },
+    "image": {
+      "last_picture": {
+        "name": "Dernière photo"
+      }
+    },
     "sensor": {
       "examples": {
         "name": "Exemples"
+      },
+      "last_seen": {
+        "name": "Vu pour la dernière fois",
+        "state_attributes": {
+          "source": {
+            "name": "Source"
+          },
+          "confidence": {
+            "name": "Confiance"
+          }
+        }
+      },
+      "last_visitor": {
+        "name": "Dernier visiteur",
+        "state": {
+          "several": "Plusieurs animaux",
+          "unknown_animal": "Animal inconnu",
+          "other_animal": "Autre animal"
+        },
+        "state_attributes": {
+          "pets": {
+            "name": "Animaux"
+          }
+        }
+      },
+      "pending_pictures": {
+        "name": "Photos en attente"
       }
     }
   },
@@ -270,6 +331,32 @@
     "pet_without_examples": {
       "title": "{pet} n'a aucun exemple",
       "description": "{pet} ne peut pas être reconnu sans photos. Ouvrez l'intégration, sélectionnez le bouton en forme d'engrenage de {pet} (**Modifier l'animal**) et ajoutez des photos où il est le seul animal."
+    },
+    "source_entity_missing": {
+      "title": "{source} a perdu une entité",
+      "fix_flow": {
+        "step": {
+          "entities": {
+            "title": "Entités de {source}",
+            "description": "Home Assistant ne connaît plus {entities}. Choisissez les entités image ou caméra que {source} utilise désormais, et un déclencheur si l'une d'elles est une caméra.",
+            "data": {
+              "entities": "Entités image ou caméra",
+              "trigger": "Déclencheur des caméras"
+            },
+            "data_description": {
+              "trigger": "Nécessaire si une caméra est choisie."
+            }
+          }
+        },
+        "error": {
+          "entity_in_use": "L'une de ces entités est déjà utilisée par une autre source.",
+          "no_entity": "Choisissez au moins une entité image ou caméra.",
+          "trigger_needed": "Choisissez un déclencheur pour les caméras."
+        },
+        "abort": {
+          "source_removed": "La source a été supprimée."
+        }
+      }
     }
   },
   "selector": {

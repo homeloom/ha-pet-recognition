@@ -16,6 +16,7 @@ from .answers import URL, info
 from .common import configured, source_data
 
 ADVANCED = {"gap": 5, "late": 2, "every_picture_shows_a_pet": True}
+CAMERA = {"trigger": "binary_sensor.garden_motion", "frames": 6, "interval": 10}
 
 
 async def set_up(
@@ -34,20 +35,36 @@ def pet(key: str, title: str) -> ConfigSubentryData:
     )
 
 
-def source(title: str, *entities: str, pets: list[str] | None = None) -> ConfigSubentryData:
+def source(
+    title: str, *entities: str, pets: list[str] | None = None, **changes: object
+) -> ConfigSubentryData:
     return ConfigSubentryData(
-        data=source_data(*entities, pets=pets), subentry_type="source", title=title, unique_id=None
+        data=source_data(*entities, pets=pets, **changes),
+        subentry_type="source",
+        title=title,
+        unique_id=None,
     )
 
 
-async def start(hass: HomeAssistant, entry: MockConfigEntry, kind: str) -> dict[str, Any]:
+async def start(
+    hass: HomeAssistant, entry: MockConfigEntry, kind: str, *entities: str
+) -> dict[str, Any]:
     result = await hass.config_entries.subentries.async_init(
         (entry.entry_id, "source"), context={"source": SOURCE_USER}
     )
     assert (result["type"], result["step_id"]) == (FlowResultType.FORM, "user")
     return await hass.config_entries.subentries.async_configure(
-        result["flow_id"], {"name": " Feeder ", "kind": kind}
+        result["flow_id"],
+        {"name": " Feeder ", "kind": kind, "entities": list(entities or ["image.feeder"])},
     )
+
+
+def fields(result: dict[str, Any], *path: str) -> list[str]:
+    """The fields of a form, or of one of its sections."""
+    schema: vol.Schema = result["data_schema"]
+    for name in path:
+        schema = next(value for key, value in schema.schema.items() if key == name).schema
+    return [str(key) for key in schema.schema]
 
 
 def suggested(result: dict[str, Any], *path: str) -> object:
@@ -59,22 +76,30 @@ def suggested(result: dict[str, Any], *path: str) -> object:
     return key.description["suggested_value"]
 
 
+def collapsed(result: dict[str, Any], name: str) -> bool:
+    schema: vol.Schema = result["data_schema"]
+    return next(value for key, value in schema.schema.items() if key == name).options["collapsed"]
+
+
 def advanced(result: dict[str, Any]) -> dict[str, object]:
     return {name: suggested(result, "advanced", name) for name in ADVANCED}
 
 
-async def test_a_source_is_added(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+async def test_a_source_of_images_is_added(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
     entry = await set_up(hass, aioclient_mock, pet("a" * 32, "Pet A"), pet("b" * 32, "Pet B"))
-    result = await start(hass, entry, "feeder")
-    assert (result["type"], result["step_id"]) == (FlowResultType.FORM, "pictures")
+    result = await start(hass, entry, "feeder", "image.feeder", "image.feeder", "image.bowl")
+    assert (result["type"], result["step_id"]) == (FlowResultType.FORM, "details")
     assert result["description_placeholders"] == {"source": "Feeder"}
+    # Without a camera, there is nothing to trigger.
+    assert fields(result) == ["pets", "advanced"]
     assert advanced(result) == ADVANCED
     pets = result["data_schema"].schema["pets"].config["options"]
     assert pets == [{"value": "a" * 32, "label": "Pet A"}, {"value": "b" * 32, "label": "Pet B"}]
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"],
         {
-            "entities": ["image.feeder", "image.feeder", "image.bowl"],
             "pets": ["a" * 32],
             "advanced": {"gap": 10.0, "late": 0.0, "every_picture_shows_a_pet": False},
         },
@@ -89,7 +114,40 @@ async def test_a_source_is_added(hass: HomeAssistant, aioclient_mock: AiohttpCli
         "gap": 10,
         "late": 0,
         "every_picture_shows_a_pet": False,
+        "trigger": None,
+        "frames": 6,
+        "interval": 10,
     }
+
+
+async def test_a_source_with_a_camera_needs_a_trigger(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    entry = await set_up(hass, aioclient_mock)
+    result = await start(hass, entry, "feeder", "camera.garden", "image.feeder")
+    assert fields(result) == ["pets", "camera", "advanced"]
+    assert fields(result, "camera") == ["trigger", "frames", "interval"]
+    assert not collapsed(result, "camera")
+    assert (suggested(result, "camera", "frames"), suggested(result, "camera", "interval")) == (
+        6,
+        10,
+    )
+    # A camera takes pictures whether a pet is there or not.
+    assert advanced(result)["every_picture_shows_a_pet"] is False
+
+    user_input = {"camera": {"frames": 3.0, "interval": 5.0}, "advanced": ADVANCED}
+    result = await hass.config_entries.subentries.async_configure(result["flow_id"], user_input)
+    assert (result["step_id"], result["errors"]) == ("details", {"base": "trigger_needed"})
+    user_input["camera"] |= {"trigger": "event.doorbell"}
+    result = await hass.config_entries.subentries.async_configure(result["flow_id"], user_input)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    (subentry,) = (item for item in entry.subentries.values() if item.subentry_type == "source")
+    assert subentry.data["entities"] == ["camera.garden", "image.feeder"]
+    assert (subentry.data["trigger"], subentry.data["frames"], subentry.data["interval"]) == (
+        "event.doorbell",
+        3,
+        5,
+    )
 
 
 @pytest.mark.parametrize(("kind", "every"), [("litter_box", True), ("pet_door", False)])
@@ -102,35 +160,29 @@ async def test_the_kind_sets_whether_every_picture_shows_a_pet(
     assert result["data_schema"].schema["pets"].config["options"] == []
 
 
-async def test_a_source_needs_a_name(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+@pytest.mark.parametrize(
+    ("name", "entities", "errors"),
+    [
+        (" ", ["image.feeder"], {"name": "empty_name"}),
+        ("Feeder", [], {"entities": "no_entity"}),
+        ("Feeder", ["image.feeder", "image.taken"], {"entities": "entity_in_use"}),
+        ("", [], {"entities": "no_entity", "name": "empty_name"}),
+    ],
+)
+async def test_the_first_step_is_checked(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    name: str,
+    entities: list[str],
+    errors: dict[str, str],
 ) -> None:
-    entry = await set_up(hass, aioclient_mock)
+    entry = await set_up(hass, aioclient_mock, source("Bowl", "image.taken"))
     result = await hass.config_entries.subentries.async_init(
         (entry.entry_id, "source"), context={"source": SOURCE_USER}
     )
-    result = await hass.config_entries.subentries.async_configure(
-        result["flow_id"], {"name": " ", "kind": "other"}
-    )
-    assert result["errors"] == {"name": "empty_name"}
-
-
-@pytest.mark.parametrize(
-    ("entities", "error"),
-    [
-        ([], "no_entity"),
-        (["image.feeder", "image.taken"], "entity_in_use"),
-    ],
-)
-async def test_the_entities_of_a_source_are_checked(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entities: list[str], error: str
-) -> None:
-    entry = await set_up(hass, aioclient_mock, source("Bowl", "image.taken"))
-    result = await start(hass, entry, "feeder")
-    result = await hass.config_entries.subentries.async_configure(
-        result["flow_id"], {"entities": entities, "advanced": ADVANCED}
-    )
-    assert (result["step_id"], result["errors"]) == ("pictures", {"entities": error})
+    user_input = {"name": name, "kind": "other", "entities": entities}
+    result = await hass.config_entries.subentries.async_configure(result["flow_id"], user_input)
+    assert (result["step_id"], result["errors"]) == ("user", errors)
     # What was entered stays.
     assert suggested(result, "entities") == entities
 
@@ -150,25 +202,62 @@ async def test_a_source_is_changed(
     )
     result = await entry.start_subentry_reconfigure_flow(hass, subentry_id)
     assert (result["type"], result["step_id"]) == (FlowResultType.FORM, "reconfigure")
+    assert fields(result) == ["name", "kind", "entities", "pets", "camera", "advanced"]
+    # A source without a camera has its camera settings out of the way.
+    assert collapsed(result, "camera")
     assert suggested(result, "name") == "Feeder"
     assert suggested(result, "entities") == ["image.feeder"]
+    assert suggested(result, "camera", "trigger") is None
     # A pet that is gone is not shown.
     assert suggested(result, "pets") == []
 
-    changes = {
+    changes: dict[str, Any] = {
         "name": "",
         "kind": "water",
         "entities": ["image.bowl"],
         "pets": [],
+        "camera": {"frames": 6, "interval": 10},
         "advanced": ADVANCED,
     }
     result = await hass.config_entries.subentries.async_configure(result["flow_id"], changes)
     assert result["errors"] == {"entities": "entity_in_use", "name": "empty_name"}
-    changes |= {"name": "Fountain", "entities": ["image.feeder", "image.fountain"]}
+    changes |= {"name": "Fountain", "entities": ["image.feeder", "camera.fountain"]}
+    result = await hass.config_entries.subentries.async_configure(result["flow_id"], changes)
+    assert result["errors"] == {"base": "trigger_needed"}
+    changes["camera"] |= {"trigger": "binary_sensor.fountain_motion", "frames": 2}
     result = await hass.config_entries.subentries.async_configure(result["flow_id"], changes)
     assert (result["type"], result["reason"]) == (FlowResultType.ABORT, "reconfigure_successful")
     await hass.async_block_till_done()
     subentry = entry.subentries[subentry_id]
     assert subentry.title == "Fountain"
     assert subentry.data["kind"] == "water"
-    assert subentry.data["entities"] == ["image.feeder", "image.fountain"]
+    assert subentry.data["entities"] == ["image.feeder", "camera.fountain"]
+    assert (subentry.data["trigger"], subentry.data["frames"]) == (
+        "binary_sensor.fountain_motion",
+        2,
+    )
+
+
+async def test_a_camera_removed_keeps_its_settings(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    entry = await set_up(hass, aioclient_mock, source("Garden", "camera.garden", **CAMERA))
+    (subentry_id,) = (
+        subentry_id for subentry_id, item in entry.subentries.items() if item.title == "Garden"
+    )
+    result = await entry.start_subentry_reconfigure_flow(hass, subentry_id)
+    assert not collapsed(result, "camera")
+    assert {name: suggested(result, "camera", name) for name in CAMERA} == CAMERA
+    changes = {
+        "name": "Garden",
+        "kind": "other",
+        "entities": ["image.garden"],
+        "camera": CAMERA | {"frames": 2},
+        "advanced": ADVANCED,
+    }
+    result = await hass.config_entries.subentries.async_configure(result["flow_id"], changes)
+    assert result["type"] is FlowResultType.ABORT
+    await hass.async_block_till_done()
+    data = entry.subentries[subentry_id].data
+    assert data["entities"] == ["image.garden"]
+    assert (data["trigger"], data["frames"]) == ("binary_sensor.garden_motion", 2)

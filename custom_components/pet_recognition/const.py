@@ -30,6 +30,10 @@ CONF_ADVANCED: Final = "advanced"
 CONF_GAP: Final = "gap"
 CONF_LATE: Final = "late"
 CONF_EVERY_PICTURE: Final = "every_picture_shows_a_pet"
+CONF_CAMERA: Final = "camera"
+CONF_TRIGGER: Final = "trigger"
+CONF_FRAMES: Final = "frames"
+CONF_INTERVAL: Final = "interval"
 # What a source is, for its names and defaults.
 KINDS: Final = ("feeder", "water", "litter_box", "pet_door", "other")
 # Sources that take pictures only when a pet is there.
@@ -38,6 +42,10 @@ KINDS_SHOWING_A_PET: Final = frozenset({"feeder", "litter_box"})
 # pictures may arrive.
 DEFAULT_GAP: Final = 5
 DEFAULT_LATE: Final = 2
+# The pictures a camera takes when its trigger fires, and the seconds between
+# them.
+DEFAULT_FRAMES: Final = 6
+DEFAULT_INTERVAL: Final = 10
 
 # How long pictures and their crops are kept, in days.
 RETENTION_DAYS: Final = 7

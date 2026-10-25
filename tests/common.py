@@ -40,5 +40,8 @@ def source_data(*entities: str, pets: list[str] | None = None, **changes: object
         "gap": 5,
         "late": 2,
         "every_picture_shows_a_pet": True,
+        "trigger": None,
+        "frames": 6,
+        "interval": 10,
         **changes,
     }

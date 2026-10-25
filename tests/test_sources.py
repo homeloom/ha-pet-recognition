@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Any
 from unittest.mock import patch
@@ -13,12 +13,8 @@ import pytest
 from aiohttp import ClientError
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.components.image import Image
-from homeassistant.config_entries import ConfigEntryState, ConfigSubentryData
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
-from homeassistant.util import dt as dt_util
-from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.pet_recognition.core.matching import OTHER_ANIMAL
@@ -28,114 +24,33 @@ from custom_components.pet_recognition.files import new_id
 from custom_components.pet_recognition.journal import (
     DATA_JOURNALS,
     SAVE_DELAY,
-    Journal,
     Pending,
     Seen,
     Status,
 )
 from custom_components.pet_recognition.sources import FIRST_RETRY, LAST_RETRY, MAX_ATTEMPTS
 
-from .answers import CROP, MODEL, URL, analysis, animal, error, info, unit
-from .common import configured, source_data
+from .answers import CROP, MODEL, URL, analysis, animal, error, unit
+from .watching import (
+    FEEDER,
+    PET_A,
+    PET_B,
+    START,
+    Shown,
+    analyses,
+    engine,
+    journal,
+    pet,
+    set_up,
+    settle,
+    show,
+    source,
+    source_id,
+    tick,
+)
 
 # The module, which the function `sources` of the integration hides.
 sources_module = importlib.import_module("custom_components.pet_recognition.sources")
-
-PET_A = "a" * 32
-PET_B = "b" * 32
-FEEDER = "image.feeder"
-START = datetime(2026, 10, 25, 8, 0, tzinfo=dt_util.UTC)
-
-type Shown = dict[str, bytes]
-
-
-@pytest.fixture
-def shown() -> Iterator[Shown]:
-    """The picture each image entity shows."""
-    pictures: Shown = {}
-
-    async def get(hass: HomeAssistant, entity_id: str, timeout: int = 10) -> Image:
-        if entity_id not in pictures:
-            raise HomeAssistantError("no picture")
-        return Image(content_type="image/jpeg", content=pictures[entity_id])
-
-    with patch("custom_components.pet_recognition.sources.async_get_image", get):
-        yield pictures
-
-
-def engine(aioclient_mock: AiohttpClientMocker, **analyze: object) -> None:
-    """Make the engine answer /v1/info, and /v1/analyze with `analyze`."""
-    aioclient_mock.clear_requests()
-    aioclient_mock.get(f"{URL}/v1/info", json=info(max_bytes=1000))
-    aioclient_mock.post(
-        f"{URL}/v1/analyze", **(analyze or {"json": analysis(animal("cat", unit(1, 0, 0)))})
-    )
-
-
-def pet(key: str, species: str = "cat") -> ConfigSubentryData:
-    return ConfigSubentryData(
-        data={"species": species}, subentry_type="pet", title=f"Pet {key[0]}", unique_id=key
-    )
-
-
-def source(*entities: str, **changes: object) -> ConfigSubentryData:
-    return ConfigSubentryData(
-        data=source_data(*entities, **changes),
-        subentry_type="source",
-        title="Feeder",
-        unique_id=None,
-    )
-
-
-async def settle(hass: HomeAssistant) -> None:
-    await hass.async_block_till_done(wait_background_tasks=True)
-
-
-async def set_up(
-    hass: HomeAssistant,
-    aioclient_mock: AiohttpClientMocker,
-    shown: Shown,
-    *subentries: ConfigSubentryData,
-    connected: bool = True,
-) -> MockConfigEntry:
-    """Set up Pet A, with one example, and the feeder, which shows a first picture."""
-    if connected:
-        engine(aioclient_mock)
-    else:
-        aioclient_mock.get(f"{URL}/v1/info", exc=ClientError("refused"))
-    shown[FEEDER] = b"first picture"
-    hass.states.async_set(FEEDER, START.isoformat())
-    entry = configured(hass, subentries=list(subentries or (pet(PET_A), source(FEEDER))))
-    assert await hass.config_entries.async_setup(entry.entry_id)
-    await settle(hass)
-    if entry.state is ConfigEntryState.LOADED and PET_A in {
-        subentry.unique_id for subentry in entry.subentries.values()
-    }:
-        store = entry.runtime_data.examples
-        await store.async_add(PET_A, Candidate(CROP, tuple(unit(1, 0, 0)), MODEL), Origin.UPLOAD)
-    return entry
-
-
-async def show(
-    hass: HomeAssistant, shown: Shown, picture: bytes, minutes: float, entity_id: str = FEEDER
-) -> None:
-    """Make an entity show a new picture, `minutes` after the start."""
-    shown[entity_id] = picture
-    hass.states.async_set(entity_id, (START + timedelta(minutes=minutes)).isoformat())
-    await settle(hass)
-
-
-def journal(entry: MockConfigEntry) -> Journal:
-    return entry.runtime_data.journal
-
-
-def analyses(aioclient_mock: AiohttpClientMocker) -> list[Any]:
-    return [call for call in aioclient_mock.mock_calls if call[1].path == "/v1/analyze"]
-
-
-def source_id(entry: MockConfigEntry) -> str:
-    (found,) = (key for key, item in entry.subentries.items() if item.subentry_type == "source")
-    return found
 
 
 async def test_a_new_picture_is_analyzed_and_recorded(
@@ -160,7 +75,8 @@ async def test_a_new_picture_is_analyzed_and_recorded(
     assert detection.scores == {PET_A: pytest.approx(1)}
     assert journal(entry).crop_path(detection.crop).read_bytes() == CROP
     assert journal(entry).queue == []
-    assert not any(journal(entry).frames.iterdir())
+    # The latest picture of the source is kept for its last picture entity.
+    assert [path.name for path in journal(entry).frames.iterdir()] == [f"{record.id}.frame"]
 
 
 async def test_only_new_pictures_are_taken(
@@ -386,12 +302,6 @@ async def test_a_picture_too_large_for_the_engine_is_not_sent(
     assert analyses(aioclient_mock) == []
     (record,) = journal(entry).records
     assert record.status is Status.UNREADABLE
-
-
-async def tick(hass: HomeAssistant, freezer: FrozenDateTimeFactory, seconds: float) -> None:
-    freezer.tick(seconds)
-    async_fire_time_changed(hass)
-    await settle(hass)
 
 
 async def test_the_queue_waits_for_the_engine_longer_each_time(
@@ -622,9 +532,15 @@ async def test_old_pictures_are_purged_every_hour(
     crop = journal(entry).crop_path(record.detections[0].crop)
     await tick(hass, freezer, timedelta(days=7).total_seconds())
     assert journal(entry).records == [record]
+    # The latest picture of a source or a pet stays past the limits.
     await tick(hass, freezer, timedelta(hours=1).total_seconds())
-    assert journal(entry).records == []
+    assert journal(entry).records == [record]
+    await show(hass, shown, b"another meal", timedelta(days=7, hours=1).total_seconds() / 60)
+    (_, latest) = journal(entry).records
+    await tick(hass, freezer, timedelta(hours=1).total_seconds())
+    assert journal(entry).records == [latest]
     assert not crop.exists()
+    assert not journal(entry).frame_path(record.id).exists()
 
 
 async def test_a_source_removed_leaves_nothing(
@@ -653,7 +569,9 @@ async def test_the_diagnostics_count_the_pictures_of_each_source(
         {
             "source": "source_1",
             "kind": "feeder",
-            "entities": 1,
+            "images": 1,
+            "cameras": 0,
+            "trigger": False,
             "pictures": {"analyzed": 1, "unreadable": 1},
             "pending": 0,
         }

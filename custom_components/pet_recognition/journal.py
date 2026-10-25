@@ -12,10 +12,19 @@ A file is written before the store names it, and deleted only once the
 store no longer names it, so that a crash leaves at worst a file that is
 named nowhere. Those are deleted each time the entry loads.
 
+A picture is deleted once analyzed, except the latest picture of each
+source where an animal was found, which its last picture entity shows until
+a newer one comes. A picture where no animal is found, such as a garden
+camera's picture of people passing by, is never kept.
+
 Embeddings are kept only while a picture is unknown, which is when they can
 still change its pets, and only for the latest unknown pictures of each
 source. The pictures of a source are limited in number and age, so the
-journal stays small.
+journal stays small. The latest picture of each source, and the latest
+picture where each pet was recognized, stay past both limits, so that
+what was last seen is still known. So do the pictures the entry's history
+protects: the whole visits its entities show, and the visits that have not
+ended before the age limit, so that a visit goes as a whole.
 """
 
 from __future__ import annotations
@@ -28,7 +37,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.storage import Store
 from homeassistant.util.hass_dict import HassKey
 
@@ -150,6 +159,8 @@ class Journal:
         self.records: list[Record] = []
         # The stored form of each record, by ID, made again only when it changes.
         self._rows: dict[str, dict[str, Any]] = {}
+        self._listeners: list[Callable[[], None]] = []
+        self._protect: Callable[[float | None], set[str]] = _nothing
 
     async def async_load(self) -> None:
         """Read the journal."""
@@ -164,7 +175,9 @@ class Journal:
 
     async def async_delete_unknown_files(self) -> None:
         """Delete the files the journal does not name."""
-        frames = {pending.id for pending in self.queue}
+        frames = {pending.id for pending in self.queue} | {
+            record.id for record in self._last_pictures().values()
+        }
         crops = {detection.crop for record in self.records for detection in record.detections}
         await self._hass.async_add_executor_job(self._delete_unknown_files, frames, crops)
 
@@ -181,13 +194,32 @@ class Journal:
         return file_path(self.crops, crop_id, CROP)
 
     @callback
+    def async_add_listener(self, listener: Callable[[], None]) -> CALLBACK_TYPE:
+        """Call `listener` after each change of the queue or the records."""
+        self._listeners.append(listener)
+        return lambda: self._listeners.remove(listener)
+
+    @callback
+    def async_protect(self, protect: Callable[[float | None], set[str]]) -> CALLBACK_TYPE:
+        """Keep past the limits the records `protect` names, given the age limit, if any."""
+        self._protect = protect
+
+        @callback
+        def _async_stop() -> None:
+            self._protect = _nothing
+
+        return _async_stop
+
+    @callback
     def async_see(self, seen: Seen) -> None:
         """Remember the last picture taken from an entity."""
         self.seen[seen.entity] = seen
         self._save()
 
-    async def async_add_pending(self, pending: Pending, picture: bytes, seen: Seen) -> None:
-        """Queue a picture for the engine, taken as `seen`.
+    async def async_add_pending(
+        self, pending: Pending, picture: bytes, seen: Seen | None = None
+    ) -> None:
+        """Queue a picture for the engine, taken as `seen` for an image entity.
 
         The picture is written first, so that an interruption leaves the
         entity as not taken. The oldest pictures go when the queue is full.
@@ -195,11 +227,13 @@ class Journal:
         await self._hass.async_add_executor_job(
             write_files, self.frames, [(self.frame_path(pending.id), picture)]
         )
-        self.seen[seen.entity] = seen
+        if seen is not None:
+            self.seen[seen.entity] = seen
         self.queue.append(pending)
         dropped = self.queue[:-QUEUE_LIMIT]
         if not dropped:
             self._save()
+            self._notify()
             return
         _LOGGER.warning(
             "The queue of pictures for the engine is full, and its %s oldest are dropped",
@@ -209,8 +243,24 @@ class Journal:
         await self._changed(frames=[pending.id for pending in dropped])
 
     async def async_read_frame(self, pending_id: str) -> bytes:
-        """The waiting picture."""
+        """A waiting picture, or the last picture of a source."""
         return await self._hass.async_add_executor_job(self.frame_path(pending_id).read_bytes)
+
+    async def async_read_crop(self, crop_id: str) -> bytes:
+        """The crop of an animal found."""
+        return await self._hass.async_add_executor_job(self.crop_path(crop_id).read_bytes)
+
+    def last_picture(self, source: str) -> Record | None:
+        """The latest picture of a source where an animal was found, whose file is kept."""
+        return self._last_pictures().get(source)
+
+    def last_of_pet(self, pet: str) -> Record | None:
+        """The latest picture where `pet` was recognized."""
+        return max(
+            (record for record in self.records if pet in record.pets),
+            key=_order,
+            default=None,
+        )
 
     def known(self, source: str, sha256: str) -> bool:
         """Whether a source already has a picture, waiting or recorded."""
@@ -241,20 +291,39 @@ class Journal:
                 self.crops,
                 [(self.crop_path(crop_id), crop) for crop_id, crop in crops],
             )
-        if pending in self.queue:
-            self.queue.remove(pending)
+        if pending not in self.queue:
+            # Dropped from a full queue meanwhile, with its frame.
+            await self._hass.async_add_executor_job(
+                delete_files, [self.crop_path(crop_id) for crop_id, _crop in crops]
+            )
+            return
+        self.queue.remove(pending)
+        before = self.last_picture(record.source)
         self.records.append(record)
+        after = self.last_picture(record.source)
+        # Only the frame of the source's last picture is kept.
+        kept = None if after is None else after.id
+        frames = [frame for frame in (pending.id,) if frame != kept]
+        if before is not None and before.id != kept:
+            frames.append(before.id)
         mine = [other for other in self.records if other.source == record.source]
         unknown = [other for other in mine if _vectors(other)]
         for other in unknown[:-VECTOR_LIMIT]:
             for detection in other.detections:
                 detection.vector = None
             self._rows.pop(other.id, None)
-        await self._changed(frames=[pending.id], records=mine[:-PICTURE_LIMIT])
+        protected = self._protected()
+        old = [other for other in mine if other.id not in protected]
+        await self._changed(frames=frames, records=old[: max(len(mine) - PICTURE_LIMIT, 0)])
 
     async def async_purge(self, before: float) -> None:
         """Remove the records of pictures taken before `before`."""
-        old = [record for record in self.records if record.taken < before]
+        protected = self._protected(before)
+        old = [
+            record
+            for record in self.records
+            if record.taken < before and record.id not in protected
+        ]
         if old:
             await self._changed(records=old)
 
@@ -287,10 +356,7 @@ class Journal:
 
     def of(self, source: str) -> list[Record]:
         """The records of a source, oldest first."""
-        return sorted(
-            (record for record in self.records if record.source == source),
-            key=lambda record: (record.taken, record.id),
-        )
+        return sorted((record for record in self.records if record.source == source), key=_order)
 
     async def _changed(self, frames: Iterable[str] = (), records: Iterable[Record] = ()) -> None:
         """Save, then delete the files no longer needed.
@@ -302,14 +368,44 @@ class Journal:
         for record in records:
             self.records.remove(record)
             self._rows.pop(record.id, None)
-        paths = [self.frame_path(frame) for frame in frames] + [
+        # A record removed takes its frame, if it was the last picture of its source.
+        paths = [self.frame_path(frame) for frame in (*frames, *(record.id for record in records))]
+        paths += [
             self.crop_path(detection.crop) for record in records for detection in record.detections
         ]
         if not paths:
             self._save()
+            self._notify()
             return
         await self._store.async_save(self._data())
+        self._notify()
         await self._hass.async_add_executor_job(delete_files, paths)
+
+    @callback
+    def _notify(self) -> None:
+        for listener in list(self._listeners):
+            listener()
+
+    def _last_pictures(self) -> dict[str, Record]:
+        """The latest picture of each source where an animal was found."""
+        latest: dict[str, Record] = {}
+        for record in self.records:
+            if record.detections and (
+                record.source not in latest or _order(record) > _order(latest[record.source])
+            ):
+                latest[record.source] = record
+        return latest
+
+    def _protected(self, before: float | None = None) -> set[str]:
+        """The records that stay past the limits: what each source and pet last showed."""
+        latest: dict[str, Record] = {}
+        for record in self.records:
+            for pet in record.pets:
+                if pet not in latest or _order(record) > _order(latest[pet]):
+                    latest[pet] = record
+        return {
+            record.id for record in (*self._last_pictures().values(), *latest.values())
+        } | self._protect(before)
 
     @callback
     def _save(self) -> None:
@@ -343,6 +439,16 @@ class Journal:
     def _delete_unknown_files(self, frames: set[str], crops: set[str]) -> None:
         delete_unknown_files(self.frames, FRAME, frames.__contains__)
         delete_unknown_files(self.crops, CROP, crops.__contains__)
+
+
+def _nothing(_before: float | None) -> set[str]:
+    """No more records to keep."""
+    return set()
+
+
+def _order(record: Record) -> tuple[float, str]:
+    """The order of the records of a source: by time taken, then ID."""
+    return (record.taken, record.id)
 
 
 def _record_row(record: Record) -> dict[str, Any]:

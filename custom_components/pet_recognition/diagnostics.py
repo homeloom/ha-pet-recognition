@@ -10,10 +10,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.loader import async_get_integration
 
 from . import PetRecognitionConfigEntry
-from .const import CONF_ENTITIES, CONF_KIND, CONF_SPECIES, DOMAIN
+from .const import CONF_KIND, CONF_SPECIES, DOMAIN
 from .core.matching import Example
 from .pets import pets
-from .sources import sources
+from .sources import source_settings, sources
 
 
 async def async_get_config_entry_diagnostics(
@@ -67,13 +67,17 @@ async def async_get_config_entry_diagnostics(
             {
                 "source": f"source_{number}",
                 "kind": subentry.data[CONF_KIND],
-                "entities": len(subentry.data[CONF_ENTITIES]),
+                "images": len(settings.images),
+                "cameras": len(settings.cameras),
+                # A trigger kept without cameras is not watched.
+                "trigger": bool(settings.cameras) and settings.trigger is not None,
                 "pictures": dict(
                     sorted(Counter(record.status.value for record in journal.of(source_id)).items())
                 ),
                 "pending": len(journal.pending(source_id)),
             }
             for number, (source_id, subentry) in enumerate(sources(entry).items(), start=1)
+            for settings in (source_settings(entry, subentry),)
         ],
         "pending": len(journal.queue),
     }

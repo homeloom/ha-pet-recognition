@@ -1,0 +1,8 @@
+configuration:
+  api_key:
+    name: API key
+    description: >-
+      Leave empty and the engine creates its own key for the integration. Set
+      a key to add the integration by hand, and enter the same key there.
+network:
+  8765/tcp: Engine API, only needed without the Supervisor

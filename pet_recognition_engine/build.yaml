@@ -1,0 +1,5 @@
+# The base image of the Supervisor's build, by tag: build.yaml takes no digest.
+# The Dockerfile pins the same image by digest, for every architecture.
+build_from:
+  amd64: docker.io/library/python:3.13.17-slim-trixie
+  aarch64: docker.io/library/python:3.13.17-slim-trixie

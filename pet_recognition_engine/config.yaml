@@ -1,0 +1,21 @@
+name: Pet Recognition Engine
+version: "0.0.0"
+slug: pet_recognition_engine
+description: Finds and embeds the animals in pictures, locally, for the Pet Recognition integration.
+url: https://github.com/homeloom/ha-pet-recognition
+stage: experimental
+arch:
+  - amd64
+  - aarch64
+# Announces its address and key to the Pet Recognition integration.
+discovery:
+  - pet_recognition
+# Only reachable from Home Assistant, on the Supervisor's network.
+ports:
+  8765/tcp: null
+ports_description:
+  8765/tcp: Engine API, only needed without the Supervisor
+options:
+  api_key: ""
+schema:
+  api_key: password?

@@ -35,6 +35,7 @@ async def async_get_config_entry_diagnostics(
     coordinator = entry.runtime_data.coordinator
     store = entry.runtime_data.examples
     journal = entry.runtime_data.journal
+    counter = entry.runtime_data.counter
     info = coordinator.data
     error = coordinator.last_exception
     return {
@@ -75,6 +76,7 @@ async def async_get_config_entry_diagnostics(
                     sorted(Counter(record.status.value for record in journal.of(source_id)).items())
                 ),
                 "pending": len(journal.pending(source_id)),
+                "visits_today": counter.today(source_id).visits,
             }
             for number, (source_id, subentry) in enumerate(sources(entry).items(), start=1)
             for settings in (source_settings(entry, subentry),)

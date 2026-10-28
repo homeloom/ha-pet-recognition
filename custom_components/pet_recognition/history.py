@@ -35,6 +35,11 @@ class History:
         self._settings = dict(settings)
         self._visits: dict[str, list[Visit]] = {}
 
+    @property
+    def sources(self) -> list[str]:
+        """The sources whose visits are grouped."""
+        return list(self._settings)
+
     @callback
     def async_start(self) -> CALLBACK_TYPE:
         """Forget the visits grouped so far each time the journal changes.
@@ -80,6 +85,23 @@ class History:
                 (picture(record) for record in records), self._settings[source]
             )
         return visits
+
+    def ended(self, source: str, now: float) -> list[Visit]:
+        """The visits of a source that no picture can join any more, oldest first."""
+        settings = self._settings[source]
+        return [visit for visit in self.visits(source) if visit.ended(now, settings)]
+
+    def next_end(self, source: str, now: float) -> float | None:
+        """When the next visit of a source going on ends, if no picture joins it."""
+        settings = self._settings[source]
+        return min(
+            (
+                visit.end + settings.gap + settings.late
+                for visit in self.visits(source)
+                if not visit.ended(now, settings)
+            ),
+            default=None,
+        )
 
     def visit_of(self, record: Record) -> Visit | None:
         """The visit a record belongs to, if any."""

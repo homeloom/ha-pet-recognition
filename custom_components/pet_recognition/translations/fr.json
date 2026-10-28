@@ -262,6 +262,40 @@
         "name": "Moteur"
       }
     },
+    "event": {
+      "visit": {
+        "name": "Visite",
+        "state_attributes": {
+          "event_type": {
+            "name": "Type d'événement",
+            "state": {
+              "visit_ended": "Visite terminée"
+            }
+          },
+          "visit_id": {
+            "name": "Visite"
+          },
+          "pets": {
+            "name": "Animaux"
+          },
+          "other_animal": {
+            "name": "Autre animal"
+          },
+          "unsure": {
+            "name": "Incertaine"
+          },
+          "start": {
+            "name": "Début"
+          },
+          "end": {
+            "name": "Fin"
+          },
+          "pictures": {
+            "name": "Photos"
+          }
+        }
+      }
+    },
     "image": {
       "last_picture": {
         "name": "Dernière photo"
@@ -297,6 +331,30 @@
       },
       "pending_pictures": {
         "name": "Photos en attente"
+      },
+      "visits_today": {
+        "name": "Visites aujourd'hui",
+        "state_attributes": {
+          "yesterday": {
+            "name": "Hier"
+          }
+        }
+      },
+      "pet_meals_today": {
+        "name": "Repas de {pet} aujourd'hui",
+        "state_attributes": {
+          "yesterday": {
+            "name": "Hier"
+          }
+        }
+      },
+      "pet_visits_today": {
+        "name": "Visites de {pet} aujourd'hui",
+        "state_attributes": {
+          "yesterday": {
+            "name": "Hier"
+          }
+        }
       }
     }
   },

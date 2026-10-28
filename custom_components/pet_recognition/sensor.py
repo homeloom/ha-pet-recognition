@@ -1,24 +1,30 @@
-"""Sensors: what each pet and each source last saw, and the engine's queue."""
+"""Sensors: what each pet and each source last saw, the visits of the day, and the
+engine's queue."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.util import dt as dt_util
 
 from . import PetRecognitionConfigEntry, PetRecognitionData
+from .const import CONF_KIND
 from .core.matching import OTHER_ANIMAL
-from .core.visits import Visit
+from .core.visits import DayCount, Visit
+from .counts import VisitCounter
 from .entity import JournalEntity, hub_device, subentry_device
 from .examples import ExampleStore
 from .journal import Record
 from .pets import pets
-from .sources import sources
+from .sources import source_settings, sources
 
 # Entities only read what the integration holds.
 PARALLEL_UPDATES = 0
@@ -27,6 +33,9 @@ PARALLEL_UPDATES = 0
 # state of a sensor that knows nothing.
 SEVERAL = "several"
 UNKNOWN_ANIMAL = "unknown_animal"
+
+# The key of the count of a pet's visits at a source, which ends its unique ID.
+PET_VISITS = "visits_today"
 
 
 async def async_setup_entry(
@@ -47,10 +56,39 @@ async def async_setup_entry(
             ],
             config_subentry_id=subentry.subentry_id,
         )
+    registry = er.async_get(hass)
     for source_id, subentry in sources(entry).items():
+        expected = {
+            pets(entry)[key].subentry_id: key for key in source_settings(entry, subentry).pets
+        }
+        _remove_orphans(registry, entry.entry_id, source_id, expected)
         async_add_entities(
-            [LastVisitor(entry.entry_id, subentry, data, titles)], config_subentry_id=source_id
+            [
+                LastVisitor(entry.entry_id, subentry, data, titles),
+                VisitsToday(entry.entry_id, subentry, data.counter),
+                *(
+                    PetVisitsToday(entry.entry_id, subentry, data.counter, pets(entry)[key])
+                    for key in expected.values()
+                ),
+            ],
+            config_subentry_id=source_id,
         )
+
+
+def _remove_orphans(
+    registry: er.EntityRegistry, entry_id: str, source_id: str, expected: dict[str, str]
+) -> None:
+    """Remove the counts of a source for pets that are gone or no longer expected there.
+
+    They belong to the source's subentry, so removing the pet leaves them.
+    """
+    prefix = f"{entry_id}_{source_id}_"
+    for entity in er.async_entries_for_config_entry(registry, entry_id):
+        if not entity.unique_id.startswith(prefix):
+            continue
+        pet, _, key = entity.unique_id.removeprefix(prefix).partition("_")
+        if key == PET_VISITS and pet not in expected:
+            registry.async_remove(entity.entity_id)
 
 
 class PetExamples(SensorEntity):
@@ -194,3 +232,72 @@ class LastVisitor(JournalEntity, SensorEntity):
         if (visit := self._visit()) is None:
             return None
         return {"pets": self._pets(visit)}
+
+
+class DayCountEntity(SensorEntity):
+    """A count of the visits of a source that started today, reset at midnight."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_state_class = SensorStateClass.TOTAL
+
+    def __init__(
+        self, source: str, counter: VisitCounter, value: Callable[[DayCount], int]
+    ) -> None:
+        self._source = source
+        self._counter = counter
+        self._value = value
+
+    async def async_added_to_hass(self) -> None:
+        """Follow the visits that end, and the days."""
+        self.async_on_remove(self._counter.async_add_listener(self._async_counted))
+
+    @callback
+    def _async_counted(self) -> None:
+        self.async_write_ha_state()
+
+    @property
+    def native_value(self) -> int:
+        """The visits of today that ended."""
+        return self._value(self._counter.today(self._source))
+
+    @property
+    def last_reset(self) -> datetime:
+        """The start of today."""
+        return dt_util.start_of_local_day()
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """The count of yesterday."""
+        return {"yesterday": self._value(self._counter.yesterday(self._source))}
+
+
+class VisitsToday(DayCountEntity):
+    """The visits of a source today, unknown ones included."""
+
+    _attr_translation_key = "visits_today"
+
+    def __init__(self, entry_id: str, subentry: ConfigSubentry, counter: VisitCounter) -> None:
+        super().__init__(subentry.subentry_id, counter, lambda counted: counted.visits)
+        self._attr_unique_id = f"{entry_id}_{subentry.subentry_id}_visits_today"
+        self._attr_device_info = subentry_device(entry_id, subentry)
+
+
+class PetVisitsToday(DayCountEntity):
+    """The visits of one pet to a source today: its meals, at a feeder."""
+
+    def __init__(
+        self,
+        entry_id: str,
+        subentry: ConfigSubentry,
+        counter: VisitCounter,
+        pet: ConfigSubentry,
+    ) -> None:
+        key = pet.unique_id or ""
+        super().__init__(subentry.subentry_id, counter, lambda counted: counted.pets.get(key, 0))
+        self._attr_translation_key = (
+            "pet_meals_today" if subentry.data[CONF_KIND] == "feeder" else "pet_visits_today"
+        )
+        self._attr_translation_placeholders = {"pet": pet.title}
+        self._attr_unique_id = f"{entry_id}_{subentry.subentry_id}_{pet.subentry_id}_{PET_VISITS}"
+        self._attr_device_info = subentry_device(entry_id, subentry)

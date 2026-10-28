@@ -21,6 +21,7 @@ from .cameras import CameraWatcher
 from .const import CONF_ENTITIES, DOMAIN, RETENTION_DAYS
 from .coordinator import ISSUES, EngineCoordinator
 from .core.matching import OTHER_ANIMAL
+from .counts import VisitCounter
 from .engine import EngineClient
 from .examples import ExampleStore, async_get_store, async_remove_data
 from .history import History
@@ -30,7 +31,7 @@ from .repairs import async_delete_source_issues, async_follow_renames, async_wat
 from .sources import Analyzer, SourceWatcher, source_settings, sources
 from .views import ExampleView
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.IMAGE, Platform.SENSOR]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.EVENT, Platform.IMAGE, Platform.SENSOR]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -44,6 +45,7 @@ class PetRecognitionData:
     examples: ExampleStore
     journal: Journal
     history: History
+    counter: VisitCounter
     analyzer: Analyzer
 
 
@@ -133,11 +135,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: PetRecognitionConfigEntr
     entry.async_on_unload(CameraWatcher(hass, entry, journal, analyzer.async_wake).async_start())
     entry.async_on_unload(async_watch_entities(hass, entry))
 
+    counter = VisitCounter(hass, journal, history)
     entry.runtime_data = PetRecognitionData(
-        client, coordinator, examples, journal, history, analyzer
+        client, coordinator, examples, journal, history, counter, analyzer
     )
     entry.async_on_unload(entry.add_update_listener(_async_reload))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # Once the event entities listen, so that a visit that ended while Home
+    # Assistant was stopped is announced to them.
+    entry.async_on_unload(counter.async_start())
     return True
 
 

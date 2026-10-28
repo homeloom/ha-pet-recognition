@@ -1,2 +1,4 @@
 # Home Assistant and pytest-homeassistant-custom-component (which brings
 # pytest-cov) are chosen by CI. Add the other test requirements here.
+# Checks the fake engine's answers against the API's schema.
+jsonschema==4.26.0

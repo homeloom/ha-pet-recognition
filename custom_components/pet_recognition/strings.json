@@ -1,0 +1,69 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to the engine",
+        "description": "Enter the address and the API key of the Pet Recognition Engine. With the engine app on Home Assistant OS, the engine is usually discovered instead.",
+        "data": {
+          "url": "URL",
+          "api_key": "API key"
+        },
+        "data_description": {
+          "url": "The engine's address, such as http://docker-host:8765.",
+          "api_key": "The key set in the engine's API key option, or its API_KEY variable."
+        }
+      },
+      "hassio_confirm": {
+        "title": "Engine found",
+        "description": "Connect to the Pet Recognition Engine of the {app} app?"
+      },
+      "reconfigure": {
+        "title": "Change the engine",
+        "description": "Enter the engine's new address. Leave the API key empty to keep the current one.",
+        "data": {
+          "url": "URL",
+          "api_key": "API key"
+        },
+        "data_description": {
+          "url": "The engine's address, such as http://docker-host:8765.",
+          "api_key": "A new key, only if the engine's key changed."
+        }
+      },
+      "reauth_confirm": {
+        "title": "New API key",
+        "description": "The engine at {url} refused its API key. Enter the engine's current key.",
+        "data": {
+          "api_key": "API key"
+        },
+        "data_description": {
+          "api_key": "The key set in the engine's API key option, or its API_KEY variable."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "The engine cannot be reached at this address.",
+      "invalid_auth": "The engine refused this API key.",
+      "invalid_url": "Enter an http or https address, such as http://docker-host:8765.",
+      "key_too_short": "The API key has at least 16 characters.",
+      "not_an_engine": "This address does not answer as a Pet Recognition Engine of a supported version."
+    },
+    "abort": {
+      "already_configured": "The engine is already set up.",
+      "already_in_progress": "The engine is already being set up.",
+      "invalid_discovery_info": "The engine app announced an address or key that cannot be used.",
+      "reauth_successful": "The new API key works.",
+      "reconfigure_successful": "The engine was changed."
+    }
+  },
+  "exceptions": {
+    "cannot_connect": {
+      "message": "Cannot reach the Pet Recognition Engine: {error}"
+    },
+    "invalid_auth": {
+      "message": "The Pet Recognition Engine refused its API key."
+    },
+    "not_an_engine": {
+      "message": "The address does not answer as a Pet Recognition Engine of a supported version: {error}"
+    }
+  }
+}

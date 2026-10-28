@@ -55,6 +55,13 @@
       "reconfigure_successful": "Le moteur a été changé."
     }
   },
+  "entity": {
+    "binary_sensor": {
+      "engine": {
+        "name": "Moteur"
+      }
+    }
+  },
   "exceptions": {
     "cannot_connect": {
       "message": "Le Pet Recognition Engine est injoignable : {error}"
@@ -64,6 +71,24 @@
     },
     "not_an_engine": {
       "message": "L'adresse ne répond pas comme un Pet Recognition Engine d'une version prise en charge : {error}"
+    }
+  },
+  "issues": {
+    "engine_unreachable": {
+      "title": "Le Pet Recognition Engine ne répond pas",
+      "description": "Le moteur à l'adresse {url} ne répond plus comme un Pet Recognition Engine depuis un quart d'heure : aucune image ne peut être reconnue. Vérifiez que l'app ou le conteneur du moteur tourne, et que c'est bien son adresse. Si le moteur a changé d'adresse, utilisez **Reconfigurer** sur l'intégration."
+    },
+    "engine_incompatible": {
+      "title": "Mettez à jour l'intégration Pet Recognition",
+      "description": "Le moteur à l'adresse {url} ne sert plus la version {api} de l'API, celle que parle cette intégration. Mettez l'intégration à jour vers la version du moteur."
+    },
+    "engine_version_newer": {
+      "title": "Le Pet Recognition Engine est plus récent que l'intégration",
+      "description": "Le moteur est en version {engine} et l'intégration en version {integration}. Ils fonctionnent encore ensemble, mais mettez l'intégration à jour pour qu'ils soient de la même version."
+    },
+    "engine_version_older": {
+      "title": "Le Pet Recognition Engine est plus ancien que l'intégration",
+      "description": "Le moteur est en version {engine} et l'intégration en version {integration}. Ils fonctionnent encore ensemble, mais mettez l'app ou le conteneur du moteur à jour pour qu'ils soient de la même version."
     }
   }
 }

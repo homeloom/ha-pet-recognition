@@ -15,7 +15,6 @@ ports:
   8765/tcp: null
 ports_description:
   8765/tcp: Engine API, only needed without the Supervisor
-watchdog: http://[HOST]:[PORT:8765]/health
 options:
   api_key: ""
 schema:

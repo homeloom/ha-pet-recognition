@@ -1,7 +1,8 @@
-# The Supervisor passes the base image of build.yaml and the app's version.
-# The default is the same pinned image, for a build with Docker alone.
-ARG BUILD_FROM=python:3.13.17-slim-trixie@sha256:d98cc29d3266e535dd9da1099688d9cb3ca4753813571e071763d17725460962
-FROM ${BUILD_FROM}
+# The base image, pinned by the digest of its multi-architecture index, so
+# that amd64 and aarch64 builds get the same image. The Supervisor passes the
+# tag of build.yaml as BUILD_FROM, which the pin replaces.
+ARG BUILD_FROM
+FROM python:3.13.17-slim-trixie@sha256:d98cc29d3266e535dd9da1099688d9cb3ca4753813571e071763d17725460962
 ARG BUILD_VERSION=0.0.0
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -31,4 +32,8 @@ RUN python -m pet_engine.selftest models.json /models selftest/cat.jpg selftest/
 
 ENV ENGINE_VERSION=${BUILD_VERSION}
 EXPOSE 8765
+# With its watchdog on, the Supervisor restarts the app once Docker marks it
+# unhealthy. Loading the models takes a few seconds, hence the start period.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD ["python", "-m", "pet_engine.healthcheck"]
 CMD ["python", "-m", "pet_engine"]

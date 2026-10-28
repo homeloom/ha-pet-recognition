@@ -1,4 +1,5 @@
-# The base image, pinned by digest: Python 3.13 on Debian slim (trixie).
+# The base image of the Supervisor's build, by tag: build.yaml takes no digest.
+# The Dockerfile pins the same image by digest, for every architecture.
 build_from:
-  amd64: python:3.13.17-slim-trixie@sha256:d98cc29d3266e535dd9da1099688d9cb3ca4753813571e071763d17725460962
-  aarch64: python:3.13.17-slim-trixie@sha256:d98cc29d3266e535dd9da1099688d9cb3ca4753813571e071763d17725460962
+  amd64: docker.io/library/python:3.13.17-slim-trixie
+  aarch64: docker.io/library/python:3.13.17-slim-trixie

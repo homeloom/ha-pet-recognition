@@ -29,13 +29,13 @@ from pathlib import Path
 import aiohttp
 from aiohttp import web
 
+from .healthcheck import PORT
 from .selftest import load_engine
 from .server import MIN_KEY_LENGTH, Engine, create_app
 
 SERVICE = "pet_recognition"
 SUPERVISOR = "http://supervisor"
 KEY_FILE = "api_key"
-PORT = 8765
 # Seconds for each call to the Supervisor.
 ANNOUNCE_TIMEOUT = 10
 

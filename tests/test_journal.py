@@ -48,6 +48,14 @@ async def add(journal: Journal, item: Pending, picture: bytes = PICTURE) -> None
     await journal.async_add_pending(item, picture, Seen(item.entity, str(item.taken), item.sha256))
 
 
+async def analyzed(
+    journal: Journal, item: Pending, done: Record, crops: list[tuple[str, bytes]] | None = None
+) -> None:
+    """Queue a picture, then record it."""
+    await journal.async_add_pending(item, PICTURE)
+    await journal.async_record(item, done, crops or [])
+
+
 def record(item: Pending, *pets: str, vector: bool = False) -> Record:
     return Record(
         id=item.id,
@@ -102,7 +110,11 @@ async def test_pictures_wait_and_become_records_across_restarts(
     await journal.async_record(first, done, [(done.detections[0].crop, CROP)])
     await journal.async_record(second, record(second, vector=True))
     assert journal.queue == []
-    assert names(journal.frames) == set()
+    # Only the latest analyzed picture of the source keeps its file.
+    assert names(journal.frames) == {f"{first.id}.frame"}
+    assert journal.last_picture("source") == done
+    assert journal.last_of_pet("pet_a") == done
+    assert journal.last_of_pet("pet_b") is None
     assert len(names(journal.crops)) == 1
     assert [item.id for item in journal.of("source")] == [second.id, first.id]
     assert journal.pending() == journal.pending("source") == []
@@ -134,20 +146,26 @@ async def test_files_are_deleted_once_the_journal_names_them_no_more(
     hass: HomeAssistant, hass_storage: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     journal = await loaded(hass)
-    item = pending()
-    await add(journal, item)
+    first, second = pending(taken=100), pending(taken=200, sha256="e" * 64)
+    await add(journal, first)
+    await add(journal, second)
+    # The latest picture of the source keeps its file: nothing to delete yet.
+    await journal.async_record(first, record(first))
     assert KEY not in hass_storage
 
     def deleted(paths: list[Path]) -> None:
         # Saved already, with no delay.
-        assert [row["id"] for row in hass_storage[KEY]["data"]["pictures"]] == [item.id]
+        assert [row["id"] for row in hass_storage[KEY]["data"]["pictures"]] == [
+            first.id,
+            second.id,
+        ]
         assert hass_storage[KEY]["data"]["queue"] == []
         calls.append(paths)
 
     calls: list[list[Path]] = []
     monkeypatch.setattr("custom_components.pet_recognition.journal.delete_files", deleted)
-    await journal.async_record(item, record(item))
-    assert calls == [[journal.frame_path(item.id)]]
+    await journal.async_record(second, record(second))
+    assert calls == [[journal.frame_path(first.id)]]
 
 
 async def test_the_queue_survives_a_restart(
@@ -175,6 +193,27 @@ async def test_a_full_queue_drops_its_oldest_pictures(
     assert "The queue of pictures for the engine is full" in caplog.text
 
 
+async def test_a_picture_dropped_while_analyzed_is_not_recorded(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("custom_components.pet_recognition.journal.QUEUE_LIMIT", 1)
+    journal = await loaded(hass)
+    last = pending(taken=1)
+    done = record(last)
+    await analyzed(journal, last, done, [(done.detections[0].crop, CROP)])
+    analysed, newer = pending(taken=2), pending(taken=3)
+    await add(journal, analysed)
+    # A new picture comes while the engine has the oldest, from a full queue.
+    await add(journal, newer)
+    late = record(analysed)
+    await journal.async_record(analysed, late, [(late.detections[0].crop, CROP)])
+    assert journal.records == [done]
+    assert journal.queue == [newer]
+    assert journal.last_picture("source") == done
+    assert names(journal.frames) == {f"{last.id}.frame", f"{newer.id}.frame"}
+    assert names(journal.crops) == {f"{done.detections[0].crop}.jpg"}
+
+
 async def test_a_dropped_picture_loses_its_file(hass: HomeAssistant) -> None:
     journal = await loaded(hass)
     item = pending()
@@ -194,10 +233,10 @@ async def test_each_source_keeps_a_limited_number_of_pictures(
     for taken in range(3):
         item = pending(taken=taken)
         done = record(item, "pet_a")
-        await journal.async_record(item, done, [(done.detections[0].crop, CROP)])
+        await analyzed(journal, item, done, [(done.detections[0].crop, CROP)])
         kept.append(done)
     other = pending("other")
-    await journal.async_record(other, record(other))
+    await analyzed(journal, other, record(other))
     assert journal.of("source") == kept[1:]
     assert len(journal.of("other")) == 1
     assert names(journal.crops) == {f"{done.detections[0].crop}.jpg" for done in kept[1:]}
@@ -214,11 +253,11 @@ async def test_only_the_latest_unknown_pictures_keep_their_embeddings(
     journal = await loaded(hass)
     items = [pending(taken=taken) for taken in range(3)]
     for item in items:
-        await journal.async_record(item, record(item, vector=True))
+        await analyzed(journal, item, record(item, vector=True))
     known = pending(taken=4)
-    await journal.async_record(known, record(known, "pet_a"))
+    await analyzed(journal, known, record(known, "pet_a"))
     other = pending("other")
-    await journal.async_record(other, record(other, vector=True))
+    await analyzed(journal, other, record(other, vector=True))
     await saved(hass, freezer)
     vectors = {
         row["id"]: row["detections"][0]["vector"] is not None
@@ -239,11 +278,31 @@ async def test_old_pictures_are_purged(hass: HomeAssistant) -> None:
     old, new = pending(taken=10), pending(taken=20)
     for item in (old, new):
         done = record(item)
-        await journal.async_record(item, done, [(done.detections[0].crop, CROP)])
+        await analyzed(journal, item, done, [(done.detections[0].crop, CROP)])
     await journal.async_purge(15)
     await journal.async_purge(15)
     assert [item.id for item in journal.records] == [new.id]
     assert len(names(journal.crops)) == 1
+
+
+async def test_what_the_history_protects_stays(hass: HomeAssistant) -> None:
+    journal = await loaded(hass)
+    items = [pending(taken=taken) for taken in (10, 11, 12, 20)]
+    for item in items:
+        await analyzed(journal, item, record(item))
+    asked: list[float | None] = []
+
+    def protect(before: float | None) -> set[str]:
+        asked.append(before)
+        return {items[0].id}
+
+    stop = journal.async_protect(protect)
+    await journal.async_purge(15)
+    assert asked == [15]
+    assert [item.id for item in journal.records] == [items[0].id, items[3].id]
+    stop()
+    await journal.async_purge(15)
+    assert [item.id for item in journal.records] == [items[3].id]
 
 
 async def test_what_is_gone_is_forgotten(
@@ -259,17 +318,18 @@ async def test_what_is_gone_is_forgotten(
     await add(journal, waiting)
     await add(journal, gone)
     seen = pending(taken=1)
-    await journal.async_record(seen, record(seen, "pet_a", "pet_b"))
+    await analyzed(journal, seen, record(seen, "pet_a", "pet_b"))
     lost = pending("gone")
-    await journal.async_record(lost, record(lost))
+    await analyzed(journal, lost, record(lost))
     other = pending(taken=2)
     other_record = record(other, OTHER_ANIMAL)
-    await journal.async_record(other, other_record)
+    await analyzed(journal, other, other_record)
 
     await journal.async_keep({"source": ["image.kept"]}, {"pet_a"})
     assert set(journal.seen) == {"image.kept"}
     assert journal.queue == [waiting]
-    assert names(journal.frames) == {f"{waiting.id}.frame"}
+    # The last picture of the source left keeps its frame.
+    assert names(journal.frames) == {f"{waiting.id}.frame", f"{other.id}.frame"}
     (kept, kept_other) = journal.of("source")
     assert kept.pets == ("pet_a",)
     assert kept.detections[0].scores == {"pet_a": 0.9}
@@ -298,13 +358,14 @@ async def test_files_named_by_nothing_are_deleted_each_time_the_journal_is_got(
     await add(journal, item)
     done_item = pending()
     done = record(done_item)
-    await journal.async_record(done_item, done, [(done.detections[0].crop, CROP)])
+    await analyzed(journal, done_item, done, [(done.detections[0].crop, CROP)])
     for _ in range(2):
         (journal.frames / f"{new_id()}.frame").write_bytes(PICTURE)
         (journal.frames / "left.tmp").write_bytes(PICTURE)
         (journal.crops / f"{new_id()}.jpg").write_bytes(CROP)
         assert await async_get_journal(hass, ENTRY) is journal
-        assert names(journal.frames) == {f"{item.id}.frame"}
+        # The source's last picture keeps its frame.
+        assert names(journal.frames) == {f"{item.id}.frame", f"{done_item.id}.frame"}
         assert names(journal.crops) == {f"{done.detections[0].crop}.jpg"}
 
 

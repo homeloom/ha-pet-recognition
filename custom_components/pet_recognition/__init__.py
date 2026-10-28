@@ -17,17 +17,20 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
+from .cameras import CameraWatcher
 from .const import CONF_ENTITIES, DOMAIN, RETENTION_DAYS
 from .coordinator import ISSUES, EngineCoordinator
 from .core.matching import OTHER_ANIMAL
 from .engine import EngineClient
 from .examples import ExampleStore, async_get_store, async_remove_data
+from .history import History
 from .journal import Journal, async_get_journal, async_remove_journal
 from .pets import Reembedder, async_check_examples, async_delete_pet_issues, pets
-from .sources import Analyzer, SourceWatcher, sources
+from .repairs import async_delete_source_issues, async_follow_renames, async_watch_entities
+from .sources import Analyzer, SourceWatcher, source_settings, sources
 from .views import ExampleView
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.IMAGE, Platform.SENSOR]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -40,6 +43,7 @@ class PetRecognitionData:
     coordinator: EngineCoordinator
     examples: ExampleStore
     journal: Journal
+    history: History
     analyzer: Analyzer
 
 
@@ -47,8 +51,9 @@ type PetRecognitionConfigEntry = ConfigEntry[PetRecognitionData]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Serve the crops of the examples."""
+    """Serve the crops of the examples, and follow the entities the sources rename."""
     hass.http.register_view(ExampleView())
+    async_follow_renames(hass)
     return True
 
 
@@ -106,6 +111,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: PetRecognitionConfigEntr
     entry.async_on_unload(coordinator.async_add_listener(_engine_updated))
     _engine_updated()
 
+    # Before the purge, which keeps whole the visits it groups.
+    history = History(
+        journal,
+        {
+            source_id: source_settings(entry, subentry).visits
+            for source_id, subentry in sources(entry).items()
+        },
+    )
+    entry.async_on_unload(history.async_start())
+
     async def _async_purge(_now: datetime | None = None) -> None:
         before = dt_util.utcnow() - timedelta(days=RETENTION_DAYS)
         await journal.async_purge(before.timestamp())
@@ -115,8 +130,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: PetRecognitionConfigEntr
         async_track_time_interval(hass, _async_purge, timedelta(hours=1), cancel_on_shutdown=True)
     )
     entry.async_on_unload(SourceWatcher(hass, entry, journal, analyzer.async_wake).async_start())
+    entry.async_on_unload(CameraWatcher(hass, entry, journal, analyzer.async_wake).async_start())
+    entry.async_on_unload(async_watch_entities(hass, entry))
 
-    entry.runtime_data = PetRecognitionData(client, coordinator, examples, journal, analyzer)
+    entry.runtime_data = PetRecognitionData(
+        client, coordinator, examples, journal, history, analyzer
+    )
     entry.async_on_unload(entry.add_update_listener(_async_reload))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
@@ -136,6 +155,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: PetRecognitionConfigEnt
     for issue in ISSUES:
         ir.async_delete_issue(hass, DOMAIN, issue)
     async_delete_pet_issues(hass)
+    async_delete_source_issues(hass)
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 

@@ -1,7 +1,8 @@
 """Sources: take each new picture of their image entities, and analyse it.
 
-A source is a set of image entities, such as a feeder's snapshot. Each time
-one of them shows a new picture, the picture is queued for the engine. A
+A source is a set of image or camera entities, such as a feeder's snapshot.
+Cameras take pictures when their trigger fires (see `cameras`). Each time
+an image entity shows a new picture, the picture is queued for the engine. A
 picture is new when the entity's state, the time of its last picture,
 differs from the last one taken, so that a restart or a change of
 attributes takes nothing twice. Its SHA-256 is the last guard: a picture
@@ -20,10 +21,12 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime
 
+from homeassistant.components.camera.const import DOMAIN as CAMERA_DOMAIN
+from homeassistant.components.image import DOMAIN as IMAGE_DOMAIN
 from homeassistant.components.image import async_get_image
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
@@ -34,6 +37,7 @@ from homeassistant.core import (
     HomeAssistant,
     State,
     callback,
+    split_entity_id,
 )
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event
@@ -41,14 +45,21 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_ENTITIES,
+    CONF_EVERY_PICTURE,
+    CONF_FRAMES,
+    CONF_GAP,
+    CONF_INTERVAL,
+    CONF_LATE,
     CONF_PETS,
     CONF_SPECIES,
+    CONF_TRIGGER,
     DETECTION_LIMIT,
     MIN_AREA,
     SUBENTRY_SOURCE,
 )
 from .coordinator import EngineCoordinator
 from .core.matching import MatchSettings, Nearest, decide, resembles
+from .core.visits import VisitSettings
 from .engine import (
     Analysis,
     EngineAuthError,
@@ -73,11 +84,35 @@ MAX_ATTEMPTS = 3
 
 @dataclass(frozen=True)
 class SourceSettings:
-    """What a source watches, and which pets may appear there."""
+    """What a source watches, which pets may appear there, and how its visits form."""
 
     entities: tuple[str, ...]
     # The keys of the pets expected at the source.
     pets: tuple[str, ...]
+    visits: VisitSettings
+    # What makes the cameras take pictures: how many each, and how far apart.
+    trigger: str | None
+    frames: int
+    interval: float
+
+    @property
+    def images(self) -> tuple[str, ...]:
+        """The image entities, whose new pictures are taken."""
+        return tuple(entity for entity in self.entities if _domain(entity) == IMAGE_DOMAIN)
+
+    @property
+    def cameras(self) -> tuple[str, ...]:
+        """The camera entities, which take pictures when the trigger fires."""
+        return tuple(cameras(self.entities))
+
+
+def cameras(entities: Iterable[str]) -> list[str]:
+    """The camera entities among `entities`, which take pictures on a trigger."""
+    return [entity for entity in entities if _domain(entity) == CAMERA_DOMAIN]
+
+
+def _domain(entity_id: str) -> str:
+    return split_entity_id(entity_id)[0]
 
 
 def sources(entry: ConfigEntry) -> dict[str, ConfigSubentry]:
@@ -95,10 +130,20 @@ def source_settings(entry: ConfigEntry, subentry: ConfigSubentry) -> SourceSetti
     It expects the pets it was given that still exist, or every pet when it
     was given none, or when they are all gone.
     """
+    data = subentry.data
     every_pet = list(pets(entry))
-    chosen = [key for key in subentry.data[CONF_PETS] if key in every_pet]
+    chosen = [key for key in data[CONF_PETS] if key in every_pet]
     return SourceSettings(
-        entities=tuple(subentry.data[CONF_ENTITIES]), pets=tuple(chosen or every_pet)
+        entities=tuple(data[CONF_ENTITIES]),
+        pets=tuple(chosen or every_pet),
+        visits=VisitSettings(
+            gap=data[CONF_GAP] * 60,
+            late=data[CONF_LATE] * 60,
+            every_picture_shows_a_pet=data[CONF_EVERY_PICTURE],
+        ),
+        trigger=data[CONF_TRIGGER],
+        frames=data[CONF_FRAMES],
+        interval=data[CONF_INTERVAL],
     )
 
 
@@ -123,7 +168,7 @@ class SourceWatcher:
         self._latest: dict[str, State] = {}
         self._taking: set[str] = set()
         for source_id, subentry in sources(entry).items():
-            for entity_id in subentry.data[CONF_ENTITIES]:
+            for entity_id in source_settings(entry, subentry).images:
                 self._sources.setdefault(entity_id, source_id)
 
     @callback

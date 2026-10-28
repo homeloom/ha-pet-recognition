@@ -53,3 +53,14 @@ All notable changes to this project are documented here. The format follows
   wait while the engine is busy or stopped, and recorded in a journal with
   the pets it shows. Each picture is deleted once analyzed; the journal and
   the crops of the animals are kept 7 days.
+- Camera sources: when the source's trigger fires (a binary sensor turning
+  on, or an event entity receiving an event), each camera takes a burst of
+  pictures, 6 by default, 10 seconds apart.
+- Entities of each source (**Last visitor**, **Last picture**), of each pet
+  (**Last seen**, **Last picture**), and **Pending pictures** on the
+  integration's device. The latest picture of a source where an animal was
+  found is kept for its last picture; a picture without an animal never is.
+  The journal drops visits only as a whole, and keeps the visits these
+  entities show, so that they keep their value.
+- Sources follow the renames of their entities, and a repair with a fix
+  names a source whose entity was removed.

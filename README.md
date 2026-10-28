@@ -64,27 +64,71 @@ in the background, the photos you gave first.
 ## Sources
 
 Add each place where pets are seen with **Add source**: a name, a kind
-(feeder, water fountain, litter box, pet door or other), then one or more
-image entities, such as a feeder's snapshot. Choose the pets expected
-there, or none for every pet. The **Visits** section sets the gap between
-two visits (5 minutes), how late pictures may arrive (2 minutes; cloud
-devices may need more), and whether every picture shows a pet, which is
-on by default for a feeder or a litter box.
+(feeder, water fountain, litter box, pet door or other), and one or more
+image or camera entities, such as a feeder's snapshot or a garden camera.
+Then choose the pets expected there, or none for every pet. The **Visits**
+section sets the gap between two visits (5 minutes), how late pictures may
+arrive (2 minutes; cloud devices may need more), and whether every picture
+shows a pet, which is on by default for a feeder or a litter box without a
+camera.
 
-Each new picture of these entities is sent to the engine, oldest first,
-one at a time. The picture an entity shows when its source is added is
-not new, and neither is a picture the source already has: an entity's
-state, the time of its last picture, must change, and the SHA-256 of the
-picture must differ from the pictures of the source, waiting or recorded.
-Pictures wait for the engine while it is busy or stopped, and survive a
-restart. A picture the engine cannot read, or fails on three times while
-it otherwise answers, is recorded as such and never blocks the others.
+Each new picture of the image entities is sent to the engine, oldest first,
+one at a time. The picture an entity shows when its source is added is not
+new, and neither is a picture the source already has: an entity's state,
+the time of its last picture, must change, and the SHA-256 of the picture
+must differ from the pictures of the source, waiting or recorded. Pictures
+wait for the engine while it is busy or stopped, and survive a restart. A
+picture the engine cannot read, or fails on three times while it otherwise
+answers, is recorded as such and never blocks the others.
 
-Each picture is deleted once analyzed. What was found in it is kept in a
+### Cameras
+
+A camera shows a live view, so it takes pictures only when the source's
+**trigger** fires: a binary sensor turning on, such as a motion sensor,
+including its first motion after Home Assistant starts, or an event entity
+receiving an event, such as a doorbell. Each camera of the
+source then takes a few pictures (6 by default), a few seconds apart (10 by
+default), set in the **Cameras** section. A trigger that fires again during
+those pictures adds nothing, and a picture the source already has, such as
+the same frame of a still scene, is not sent again. A camera added to a
+source that already exists leaves **every picture shows a pet** as it was:
+turn it off if the camera also sees scenes without a pet.
+
+### Entities
+
+Each source has a device with:
+
+- **Last visitor**: the pet of the latest visit, `several`, `unknown_animal`
+  when no pet could be told, or `other_animal`. Its `pets` attribute lists
+  the pets of that visit.
+- **Last picture**: the latest picture of the source where an animal was
+  found.
+
+Each pet's device adds **Last seen**, when the latest visit where the pet
+was recognized started, with the source and the confidence as attributes,
+and **Last picture**, the pet's crop in that picture. The integration's own
+device has **Pending pictures**, the pictures waiting for the engine.
+
+### Pictures kept
+
+A picture is deleted once analyzed, except the latest picture of each
+source where an animal was found, which **Last picture** shows. A picture
+where no animal is found, such as a garden camera's picture of people
+passing by, is never kept. What was found in each picture is kept in a
 journal in Home Assistant's storage, with the crop of each animal under
 `pet_recognition/` in the configuration directory, for 7 days and at most
-2000 pictures per source; at most 100 pictures wait for the engine.
-Deleting a source deletes its journal and crops.
+2000 pictures per source. A visit goes as a whole, once it ended more than
+7 days ago, and the latest visit of each source, and the visit where each
+pet was last seen, stay past those limits, so that the entities keep their
+value. At most 100 pictures wait for the engine. Deleting
+a source deletes its journal and crops.
+
+### Renamed and missing entities
+
+When you rename an entity of a source, or its trigger, the source follows
+the new name. When one is removed from Home Assistant, a repair names the
+source once Home Assistant has started, and its **Fix** chooses the
+entities the source uses now.
 
 ## How it will work
 

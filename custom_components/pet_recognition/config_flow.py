@@ -58,6 +58,7 @@ from .const import (
     MIN_KEY_LENGTH,
     SPECIES,
     SUBENTRY_PET,
+    SUBENTRY_SOURCE,
     TITLE,
 )
 from .core.matching import NEAR_DUPLICATE, Added, similarity
@@ -68,8 +69,10 @@ from .engine import (
     EngineError,
     engine_url,
 )
-from .examples import Candidate, Origin, new_id, stored_vector
+from .examples import Candidate, Origin, stored_vector
+from .files import new_id
 from .pets import PictureError, async_candidate, async_capture
+from .source_flow import SourceFlow
 from .views import signed_example_url
 
 if TYPE_CHECKING:
@@ -117,8 +120,8 @@ class PetRecognitionConfigFlow(ConfigFlow, domain=DOMAIN):
     def async_get_supported_subentry_types(
         cls, config_entry: ConfigEntry
     ) -> dict[str, type[ConfigSubentryFlow]]:
-        """Pets are subentries."""
-        return {SUBENTRY_PET: PetFlow}
+        """Pets and sources are subentries."""
+        return {SUBENTRY_PET: PetFlow, SUBENTRY_SOURCE: SourceFlow}
 
     def __init__(self) -> None:
         self._discovered: dict[str, str] = {}

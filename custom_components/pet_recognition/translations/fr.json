@@ -141,6 +141,90 @@
         "entry_not_loaded": "L'intégration n'est pas chargée. Vérifiez qu'elle est configurée, puis réessayez.",
         "reconfigure_successful": "L'animal a été modifié."
       }
+    },
+    "source": {
+      "entry_type": "Source",
+      "initiate_flow": {
+        "user": "Ajouter une source",
+        "reconfigure": "Modifier la source"
+      },
+      "step": {
+        "user": {
+          "title": "Ajouter une source",
+          "description": "Une source est un endroit où l'on voit les animaux, comme une mangeoire. Ses photos viennent ensuite.",
+          "data": {
+            "name": "Nom",
+            "kind": "Type"
+          },
+          "data_description": {
+            "name": "Le nom affiché de la source, par exemple dans les notifications.",
+            "kind": "Ce qu'est la source, pour ses réglages par défaut."
+          }
+        },
+        "pictures": {
+          "title": "Photos de {source}",
+          "description": "Choisissez d'où viennent les photos de {source}. Les photos déjà affichées ne sont pas analysées, seulement les nouvelles.",
+          "data": {
+            "entities": "Entités image",
+            "pets": "Animaux attendus"
+          },
+          "data_description": {
+            "entities": "Chaque nouvelle photo de ces entités est analysée.",
+            "pets": "Les animaux qui peuvent apparaître à cette source. Aucun choix signifie tous les animaux."
+          },
+          "sections": {
+            "advanced": {
+              "name": "Visites",
+              "data": {
+                "gap": "Écart entre deux visites",
+                "late": "Retard des photos",
+                "every_picture_shows_a_pet": "Chaque photo montre un animal"
+              },
+              "data_description": {
+                "gap": "Les photos plus rapprochées que cela font partie de la même visite.",
+                "late": "Combien de temps après leur prise les photos peuvent arriver. Les appareils dans le cloud peuvent nécessiter davantage.",
+                "every_picture_shows_a_pet": "La source ne prend des photos que lorsqu'un animal est là : une visite où aucun animal n'est trouvé compte alors comme inconnue."
+              }
+            }
+          }
+        },
+        "reconfigure": {
+          "title": "Modifier la source",
+          "data": {
+            "name": "Nom",
+            "kind": "Type",
+            "entities": "Entités image",
+            "pets": "Animaux attendus"
+          },
+          "data_description": {
+            "entities": "Chaque nouvelle photo de ces entités est analysée.",
+            "pets": "Les animaux qui peuvent apparaître à cette source. Aucun choix signifie tous les animaux."
+          },
+          "sections": {
+            "advanced": {
+              "name": "Visites",
+              "data": {
+                "gap": "Écart entre deux visites",
+                "late": "Retard des photos",
+                "every_picture_shows_a_pet": "Chaque photo montre un animal"
+              },
+              "data_description": {
+                "gap": "Les photos plus rapprochées que cela font partie de la même visite.",
+                "late": "Combien de temps après leur prise les photos peuvent arriver. Les appareils dans le cloud peuvent nécessiter davantage.",
+                "every_picture_shows_a_pet": "La source ne prend des photos que lorsqu'un animal est là : une visite où aucun animal n'est trouvé compte alors comme inconnue."
+              }
+            }
+          }
+        }
+      },
+      "error": {
+        "empty_name": "Saisissez un nom.",
+        "entity_in_use": "L'une de ces entités est déjà utilisée par une autre source.",
+        "no_entity": "Choisissez au moins une entité image."
+      },
+      "abort": {
+        "reconfigure_successful": "La source a été modifiée."
+      }
     }
   },
   "entity": {
@@ -194,6 +278,15 @@
         "cat": "Chat",
         "dog": "Chien",
         "bird": "Oiseau"
+      }
+    },
+    "kind": {
+      "options": {
+        "feeder": "Mangeoire",
+        "water": "Fontaine à eau",
+        "litter_box": "Litière",
+        "pet_door": "Porte pour animaux",
+        "other": "Autre"
       }
     }
   }

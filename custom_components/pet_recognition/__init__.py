@@ -3,23 +3,28 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_API_KEY, CONF_URL, Platform
+from homeassistant.const import CONF_API_KEY, CONF_URL, EVENT_HOMEASSISTANT_STOP, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
+from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
+from .const import CONF_ENTITIES, DOMAIN, RETENTION_DAYS
 from .coordinator import ISSUES, EngineCoordinator
 from .core.matching import OTHER_ANIMAL
 from .engine import EngineClient
 from .examples import ExampleStore, async_get_store, async_remove_data
+from .journal import Journal, async_get_journal, async_remove_journal
 from .pets import Reembedder, async_check_examples, async_delete_pet_issues, pets
+from .sources import Analyzer, SourceWatcher, sources
 from .views import ExampleView
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
@@ -34,6 +39,8 @@ class PetRecognitionData:
     client: EngineClient
     coordinator: EngineCoordinator
     examples: ExampleStore
+    journal: Journal
+    analyzer: Analyzer
 
 
 type PetRecognitionConfigEntry = ConfigEntry[PetRecognitionData]
@@ -80,11 +87,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: PetRecognitionConfigEntr
                 hass, reembedder.async_run(model), "pet_recognition embed examples again"
             )
 
-    # Also keeps the engine watched even if the user disables every entity.
-    entry.async_on_unload(coordinator.async_add_listener(_reembed))
-    _reembed()
+    journal = await async_get_journal(hass, entry.entry_id)
+    # What concerns sources, entities and pets removed meanwhile.
+    await journal.async_keep(
+        {source_id: subentry.data[CONF_ENTITIES] for source_id, subentry in sources(entry).items()},
+        set(pets(entry)),
+    )
+    analyzer = Analyzer(hass, entry, coordinator, journal, examples)
+    entry.async_on_unload(analyzer.async_stop)
+    entry.async_on_unload(hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, analyzer.async_stop))
 
-    entry.runtime_data = PetRecognitionData(client, coordinator, examples)
+    @callback
+    def _engine_updated() -> None:
+        _reembed()
+        analyzer.async_engine_updated()
+
+    # Also keeps the engine watched even if the user disables every entity.
+    entry.async_on_unload(coordinator.async_add_listener(_engine_updated))
+    _engine_updated()
+
+    async def _async_purge(_now: datetime | None = None) -> None:
+        before = dt_util.utcnow() - timedelta(days=RETENTION_DAYS)
+        await journal.async_purge(before.timestamp())
+
+    await _async_purge()
+    entry.async_on_unload(
+        async_track_time_interval(hass, _async_purge, timedelta(hours=1), cancel_on_shutdown=True)
+    )
+    entry.async_on_unload(SourceWatcher(hass, entry, journal, analyzer.async_wake).async_start())
+
+    entry.runtime_data = PetRecognitionData(client, coordinator, examples, journal, analyzer)
     entry.async_on_unload(entry.add_update_listener(_async_reload))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
@@ -108,5 +140,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: PetRecognitionConfigEnt
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: PetRecognitionConfigEntry) -> None:
-    """Delete the examples and files of a deleted entry."""
+    """Delete the examples, the journal and the files of a deleted entry."""
+    await async_remove_journal(hass, entry.entry_id)
     await async_remove_data(hass, entry.entry_id)

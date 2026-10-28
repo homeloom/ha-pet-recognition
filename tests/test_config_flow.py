@@ -280,6 +280,8 @@ async def test_a_change_of_engine_is_checked_first(
     )
     assert result["reason"] == "reconfigure_successful"
     assert entry.data == {CONF_URL: URL, CONF_API_KEY: NEW_KEY}
+    # The entry loads with its new engine.
+    await hass.async_block_till_done()
 
 
 async def test_a_refused_key_asks_for_the_new_one(

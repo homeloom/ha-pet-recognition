@@ -167,10 +167,12 @@
           "title": "Détails de {source}",
           "description": "Choisissez les animaux de {source}. Les photos déjà affichées ne sont pas analysées, seulement les nouvelles.",
           "data": {
-            "pets": "Animaux attendus"
+            "pets": "Animaux attendus",
+            "ask_when_unsure": "Me demander en cas de doute"
           },
           "data_description": {
-            "pets": "Les animaux qui peuvent apparaître à cette source. Aucun choix signifie tous les animaux."
+            "pets": "Les animaux qui peuvent apparaître à cette source. Aucun choix signifie tous les animaux.",
+            "ask_when_unsure": "Une fois que chaque animal a des exemples, demander aux téléphones des options qui c'était quand une visite de cette source reste inconnue."
           },
           "sections": {
             "camera": {
@@ -208,11 +210,13 @@
             "name": "Nom",
             "kind": "Type",
             "entities": "Entités image ou caméra",
-            "pets": "Animaux attendus"
+            "pets": "Animaux attendus",
+            "ask_when_unsure": "Me demander en cas de doute"
           },
           "data_description": {
             "entities": "Chaque nouvelle photo d'une entité image est analysée. Une caméra prend des photos quand son déclencheur s'active.",
-            "pets": "Les animaux qui peuvent apparaître à cette source. Aucun choix signifie tous les animaux."
+            "pets": "Les animaux qui peuvent apparaître à cette source. Aucun choix signifie tous les animaux.",
+            "ask_when_unsure": "Une fois que chaque animal a des exemples, demander aux téléphones des options qui c'était quand une visite de cette source reste inconnue."
           },
           "sections": {
             "camera": {
@@ -367,6 +371,15 @@
     },
     "not_an_engine": {
       "message": "L'adresse ne répond pas comme un Pet Recognition Engine d'une version prise en charge : {error}"
+    },
+    "question_unsure": {
+      "message": "Qui était à {source} à {time} ?"
+    },
+    "question_learning": {
+      "message": "Qui était à {source} à {time} ? La réponse aide à reconnaître les animaux."
+    },
+    "question_other": {
+      "message": "Autre"
     }
   },
   "issues": {
@@ -415,13 +428,25 @@
           "source_removed": "La source a été supprimée."
         }
       }
+    },
+    "notify_device_missing": {
+      "title": "Un téléphone à interroger a disparu",
+      "description": "Un téléphone choisi dans les options de Pet Recognition n'est plus un appareil de l'application compagnon de Home Assistant, et ne reçoit donc plus de questions. Ouvrez l'intégration, sélectionnez **Configurer** et choisissez à nouveau les téléphones."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Options de reconnaissance",
-        "description": "Les changements s'appliquent aux nouvelles photos, une fois l'intégration rechargée.",
+        "title": "Options",
+        "description": "Les changements s'appliquent une fois l'intégration rechargée. Les questions sur les téléphones passent par l'application compagnon de Home Assistant, avec les noms des animaux et de la source, l'heure et un lien vers la photo : la photo elle-même reste dans Home Assistant.",
+        "data": {
+          "phones": "Téléphones à interroger",
+          "ask_while_learning": "Interroger pendant l'apprentissage"
+        },
+        "data_description": {
+          "phones": "Chaque téléphone reçoit une notification quand une visite reste inconnue, avec la photo et un bouton par animal. Aucun choisi veut dire aucune question.",
+          "ask_while_learning": "Tant qu'un animal n'a pas d'exemple, interroger sur une visite à la fois, pour que les réponses donnent les premiers exemples."
+        },
         "sections": {
           "advanced": {
             "name": "Reconnaissance",

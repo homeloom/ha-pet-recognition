@@ -30,6 +30,7 @@ from homeassistant.helpers.selector import (
 
 from .const import (
     CONF_ADVANCED,
+    CONF_ASK_WHEN_UNSURE,
     CONF_CAMERA,
     CONF_ENTITIES,
     CONF_EVERY_PICTURE,
@@ -138,6 +139,7 @@ class SourceFlow(ConfigSubentryFlow):
                 )
         defaults: dict[str, Any] = {
             CONF_PETS: [],
+            CONF_ASK_WHEN_UNSURE: True,
             CONF_ADVANCED: {
                 CONF_GAP: DEFAULT_GAP,
                 CONF_LATE: DEFAULT_LATE,
@@ -179,6 +181,7 @@ class SourceFlow(ConfigSubentryFlow):
             CONF_KIND: data[CONF_KIND],
             CONF_ENTITIES: data[CONF_ENTITIES],
             CONF_PETS: [key for key in data[CONF_PETS] if key in pets(self._get_entry())],
+            CONF_ASK_WHEN_UNSURE: data.get(CONF_ASK_WHEN_UNSURE, True),
             CONF_CAMERA: {
                 CONF_TRIGGER: data[CONF_TRIGGER],
                 CONF_FRAMES: data[CONF_FRAMES],
@@ -212,7 +215,8 @@ class SourceFlow(ConfigSubentryFlow):
         fields: dict[Any, Any] = {
             vol.Optional(CONF_PETS): SelectSelector(
                 SelectSelectorConfig(options=options, multiple=True)
-            )
+            ),
+            vol.Required(CONF_ASK_WHEN_UNSURE, default=True): BooleanSelector(),
         }
         if camera:
             fields[vol.Required(CONF_CAMERA)] = section(
@@ -252,6 +256,7 @@ class SourceFlow(ConfigSubentryFlow):
             CONF_KIND: self._kind,
             CONF_ENTITIES: entities,
             CONF_PETS: list(user_input.get(CONF_PETS, [])),
+            CONF_ASK_WHEN_UNSURE: bool(user_input[CONF_ASK_WHEN_UNSURE]),
             CONF_GAP: int(advanced[CONF_GAP]),
             CONF_LATE: int(advanced[CONF_LATE]),
             CONF_EVERY_PICTURE: bool(advanced[CONF_EVERY_PICTURE]),

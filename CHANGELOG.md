@@ -12,6 +12,15 @@ All notable changes to this project are documented here. The format follows
   smallest animal and the most animals in a picture of a source, and how
   many days pictures are kept (7 by default, from 2 to 30). They are in the
   diagnostics.
+- Questions on the phones: once a visit ended, each part of it that stays
+  unknown is asked on the companion app phones chosen in the options, with
+  the crop of the animal and buttons for the two likeliest pets and Other.
+  One learning question at a time while a pet has no examples (**Ask while
+  learning**), and questions when unsure per source (**Ask when unsure**).
+  Questions are saved before they are sent, tried again on a phone that
+  fails, removed from the phones once they expire or their source is
+  removed, and counted in the diagnostics.
+- A repair when a phone of the options is no longer a companion app device.
 
 ## [0.1.0] - 2026-10-28
 

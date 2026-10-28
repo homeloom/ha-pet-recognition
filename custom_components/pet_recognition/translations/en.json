@@ -167,10 +167,12 @@
           "title": "Details of {source}",
           "description": "Choose the pets of {source}. Pictures already shown are not analyzed, only new ones.",
           "data": {
-            "pets": "Expected pets"
+            "pets": "Expected pets",
+            "ask_when_unsure": "Ask when unsure"
           },
           "data_description": {
-            "pets": "The pets that may appear at this source. None chosen means every pet."
+            "pets": "The pets that may appear at this source. None chosen means every pet.",
+            "ask_when_unsure": "Once every pet has examples, ask the phones of the options who it was when a visit of this source stays unknown."
           },
           "sections": {
             "camera": {
@@ -208,11 +210,13 @@
             "name": "Name",
             "kind": "Kind",
             "entities": "Image or camera entities",
-            "pets": "Expected pets"
+            "pets": "Expected pets",
+            "ask_when_unsure": "Ask when unsure"
           },
           "data_description": {
             "entities": "Each new picture of an image entity is analyzed. A camera takes pictures when its trigger fires.",
-            "pets": "The pets that may appear at this source. None chosen means every pet."
+            "pets": "The pets that may appear at this source. None chosen means every pet.",
+            "ask_when_unsure": "Once every pet has examples, ask the phones of the options who it was when a visit of this source stays unknown."
           },
           "sections": {
             "camera": {
@@ -367,6 +371,15 @@
     },
     "not_an_engine": {
       "message": "The address does not answer as a Pet Recognition Engine of a supported version: {error}"
+    },
+    "question_unsure": {
+      "message": "Who was at {source} at {time}?"
+    },
+    "question_learning": {
+      "message": "Who was at {source} at {time}? The answer helps tell the pets apart."
+    },
+    "question_other": {
+      "message": "Other"
     }
   },
   "issues": {
@@ -415,13 +428,25 @@
           "source_removed": "The source was removed."
         }
       }
+    },
+    "notify_device_missing": {
+      "title": "A phone to ask is gone",
+      "description": "A phone chosen in the options of Pet Recognition is no longer a device of the Home Assistant companion app, so it gets no questions. Open the integration, select **Configure**, and choose the phones again."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Recognition options",
-        "description": "Changes apply to new pictures, once the integration loads again.",
+        "title": "Options",
+        "description": "Changes apply once the integration loads again. Questions on the phones go through the Home Assistant companion app, with the names of the pets and the source, the time, and a link to the picture: the picture itself stays in Home Assistant.",
+        "data": {
+          "phones": "Phones to ask",
+          "ask_while_learning": "Ask while learning"
+        },
+        "data_description": {
+          "phones": "Each phone gets a notification when a visit stays unknown, with the picture and a button per pet. None chosen means no questions.",
+          "ask_while_learning": "While a pet has no examples yet, ask about one visit at a time, so that the answers teach the first examples."
+        },
         "sections": {
           "advanced": {
             "name": "Recognition",

@@ -27,6 +27,8 @@ DEFAULT_OPTIONS = {
     "min_area": 0.01,
     "detection_limit": 5,
     "retention_days": 7,
+    "phones": 0,
+    "ask_while_learning": True,
 }
 
 

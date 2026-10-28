@@ -4,8 +4,9 @@ Tell which of your pets appears in pictures from Home Assistant, count their
 visits, and learn from your answers. Everything runs locally.
 
 > **Status: first release.** Pets are recognized at their sources, and
-> their visits counted per day. Questions when it is unsure, and learning
-> from the answers, come in a later release.
+> their visits counted per day. Questions on the phones when it is unsure
+> are being added: they are sent, and their answers, and learning from
+> them, come next.
 
 ## Setup
 
@@ -66,7 +67,9 @@ in the background, the photos you gave first.
 Add each place where pets are seen with **Add source**: a name, a kind
 (feeder, water fountain, litter box, pet door or other), and one or more
 image or camera entities, such as a feeder's snapshot or a garden camera.
-Then choose the pets expected there, or none for every pet. The **Visits**
+Then choose the pets expected there, or none for every pet, and whether to
+**ask when unsure** (see [Questions on the phones](#questions-on-the-phones)).
+The **Visits**
 section sets the gap between two visits (5 minutes), how late pictures may
 arrive (2 minutes; cloud devices may need more), and whether every picture
 shows a pet, which is on by default for a feeder or a litter box without a
@@ -159,9 +162,16 @@ entities the source uses now.
 
 ## Options
 
-**Configure** on the integration's entry tunes how the pictures of the
-sources are recognized. Changes apply to new pictures once the integration
-loads again, which it does at once:
+**Configure** on the integration's entry chooses the phones to ask, and
+tunes how the pictures of the sources are recognized. Changes apply once
+the integration loads again, which it does at once:
+
+- **Phones to ask**: the phones of the Home Assistant companion app that
+  get the questions. None chosen means no questions.
+- **Ask while learning** (on): while a pet has no examples yet, ask about
+  one visit at a time.
+
+The **Recognition** section holds:
 
 - **Score to decide** (0.6): how much an animal must resemble the examples
   of a pet, from 0 to 1, for the pet to be decided. Higher means fewer
@@ -176,7 +186,42 @@ loads again, which it does at once:
   counts.
 
 Photos of pets, which become examples, keep the default smallest animal
-and animals per picture.
+and animals per picture. Changes to the recognition apply to new pictures.
+
+## Questions on the phones
+
+Once a visit has ended, each part of it where no pet could be told becomes
+a question, sent to each phone of the options: "Who was at Feeder at
+08:12?", with the crop of the animal and three buttons, the two likeliest
+pets and **Other**, since Android shows three. A part of a visit is asked
+about once, and at most two hours after the visit ended, so that a restart
+after a while asks nothing old.
+
+- **While learning**, when a pet expected at the source has no examples
+  yet, every visit is unknown: one question at a time is open per source,
+  and it expires after two hours without an answer, which removes it from
+  the phones. Turn off **Ask while learning** to wait for the photos you
+  give.
+- **Once each pet has examples**, a source asks when unsure, unless its
+  **Ask when unsure** is off.
+
+A question is saved before it is sent, with the phones it reached, so a
+restart sends it to the phones still missing. A phone that fails is tried
+again after a minute, then longer each time, up to half an hour, for as
+long as the question can be asked. A phone that is no longer a device of
+the companion app raises a repair: choose the phones again in the options.
+Removing a source, or the integration, removes its open questions from the
+phones.
+
+Answering is not handled yet: the next release corrects the visit with the
+answer, and turns it into an example.
+
+**What leaves Home Assistant**: the notifications go through the push relay
+of the companion apps, with the names of the pets and the source, the time,
+and a link to the crop. The crop itself stays in Home Assistant: the phone
+loads it from Home Assistant, through a link signed for 24 hours, which a
+restart of Home Assistant ends sooner. So the phone must reach Home
+Assistant to show it.
 
 ## How it will work
 

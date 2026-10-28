@@ -28,7 +28,10 @@ ended before the age limit, so that a visit goes as a whole.
 
 The journal also remembers, for each source, the start of the latest visit
 announced as ended, so that a visit is announced once, even across a
-restart.
+restart, and the questions asked on the phones, with the phones each was
+sent to. A question is saved at once when it is asked, before it is sent,
+so that a restart never asks it twice, and forgotten once it is closed and
+none of its pictures is kept.
 """
 
 from __future__ import annotations
@@ -46,6 +49,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util.hass_dict import HassKey
 
 from .const import DOMAIN, PICTURE_LIMIT, QUEUE_LIMIT
+from .core.doubts import Doubt, Kind, State
 from .core.matching import OTHER_ANIMAL
 from .examples import data_directory, decode_vector, encode_vector
 from .files import FILE_ID, delete_files, delete_unknown_files, file_path, write_files
@@ -126,6 +130,29 @@ class Record:
     resembles: str | None = None
 
 
+@dataclass
+class Asked:
+    """A question asked on the phones, and where it stands.
+
+    `taken` is when the picture shown was taken, and `crop` the crop the
+    notification shows, if that picture has an animal; `choices` the pets
+    of its buttons; `phones` the devices to notify, and `sent` those it was
+    sent to.
+    """
+
+    doubt: Doubt
+    taken: float
+    crop: str | None
+    choices: tuple[str, ...]
+    phones: tuple[str, ...]
+    sent: tuple[str, ...] = ()
+
+    @property
+    def open(self) -> bool:
+        """The question waits for an answer."""
+        return self.doubt.state is State.OPEN
+
+
 async def async_get_journal(hass: HomeAssistant, entry_id: str) -> Journal:
     """The journal of an entry, loaded the first time and kept across reloads.
 
@@ -163,6 +190,7 @@ class Journal:
         self.records: list[Record] = []
         # By source, the start of the latest visit announced as ended.
         self.announced: dict[str, float] = {}
+        self.asked: list[Asked] = []
         # The stored form of each record, by ID, made again only when it changes.
         self._rows: dict[str, dict[str, Any]] = {}
         self._listeners: list[Callable[[], None]] = []
@@ -179,6 +207,7 @@ class Journal:
         self.queue = _read_list(stored, "queue", _pending)
         self.records = _read_list(stored, "pictures", _record)
         self.announced = _read_announced(stored)
+        self.asked = _read_list(stored, "questions", _asked)
 
     async def async_delete_unknown_files(self) -> None:
         """Delete the files the journal does not name."""
@@ -279,6 +308,31 @@ class Journal:
     def async_announce(self, source: str, start: float) -> None:
         """Remember the start of the latest visit of a source announced as ended."""
         self.announced[source] = start
+        self._save()
+
+    def doubts(self, source: str) -> list[Doubt]:
+        """The questions asked about a source."""
+        return [asked.doubt for asked in self.asked if asked.doubt.source == source]
+
+    def question(self, doubt: Doubt) -> Asked:
+        """The question of a doubt."""
+        return next(asked for asked in self.asked if asked.doubt is doubt)
+
+    async def async_ask(self, asked: Asked) -> None:
+        """Remember a question about to be sent, saved at once."""
+        self.asked.append(asked)
+        await self._store.async_save(self._data())
+
+    @callback
+    def async_sent(self, asked: Asked, phone: str) -> None:
+        """Remember that a question was sent to a phone."""
+        asked.sent = (*asked.sent, phone)
+        self._save()
+
+    @callback
+    def async_closed(self) -> None:
+        """Save the questions that were closed, and forget those without pictures."""
+        self._forget_questions()
         self._save()
 
     @callback
@@ -384,6 +438,7 @@ class Journal:
         for record in records:
             self.records.remove(record)
             self._rows.pop(record.id, None)
+        self._forget_questions()
         # A record removed takes its frame, if it was the last picture of its source.
         paths = [self.frame_path(frame) for frame in (*frames, *(record.id for record in records))]
         paths += [
@@ -401,6 +456,15 @@ class Journal:
     def _notify(self) -> None:
         for listener in list(self._listeners):
             listener()
+
+    def _forget_questions(self) -> None:
+        """Forget the questions that are closed and none of whose pictures is kept."""
+        kept = {record.id for record in self.records}
+        self.asked = [
+            asked
+            for asked in self.asked
+            if asked.open or any(picture in kept for picture in asked.doubt.pictures)
+        ]
 
     def _last_pictures(self) -> dict[str, Record]:
         """The latest picture of each source where an animal was found."""
@@ -451,6 +515,7 @@ class Journal:
             ],
             "pictures": [self._row(record) for record in self.records],
             "announced": dict(self.announced),
+            "questions": [_asked_row(asked) for asked in self.asked],
         }
 
     def _delete_unknown_files(self, frames: set[str], crops: set[str]) -> None:
@@ -491,6 +556,25 @@ def _record_row(record: Record) -> dict[str, Any]:
             }
             for detection in record.detections
         ],
+    }
+
+
+def _asked_row(asked: Asked) -> dict[str, Any]:
+    """The stored form of a question."""
+    doubt = asked.doubt
+    return {
+        "id": doubt.id,
+        "source": doubt.source,
+        "pictures": list(doubt.pictures),
+        "shown": doubt.shown,
+        "kind": doubt.kind,
+        "asked": doubt.asked,
+        "state": doubt.state,
+        "taken": asked.taken,
+        "crop": asked.crop,
+        "choices": list(asked.choices),
+        "phones": list(asked.phones),
+        "sent": list(asked.sent),
     }
 
 
@@ -601,6 +685,33 @@ def _record(value: Mapping[str, Any]) -> Record:
         detections=[_detection(item) for item in detections],
         pets=tuple(_text(pet) for pet in pets),
         resembles=None if resembles is None else _text(resembles),
+    )
+
+
+def _texts(value: object) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        raise ValueError("a list of texts is missing")
+    return tuple(_text(item) for item in value)
+
+
+def _asked(value: Mapping[str, Any]) -> Asked:
+    crop = value["crop"]
+    doubt = Doubt(
+        id=_id(value["id"]),
+        source=_text(value["source"]),
+        pictures=tuple(_id(picture) for picture in _texts(value["pictures"])),
+        shown=_id(value["shown"]),
+        kind=Kind(value["kind"]),
+        asked=_number(value["asked"]),
+        state=State(value["state"]),
+    )
+    return Asked(
+        doubt=doubt,
+        taken=_number(value["taken"]),
+        crop=None if crop is None else _id(crop),
+        choices=_texts(value["choices"]),
+        phones=_texts(value["phones"]),
+        sent=_texts(value["sent"]),
     )
 
 

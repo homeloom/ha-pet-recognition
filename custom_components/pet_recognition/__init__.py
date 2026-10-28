@@ -28,9 +28,11 @@ from .history import History
 from .journal import Journal, async_get_journal, async_remove_journal
 from .options import entry_options
 from .pets import Reembedder, async_check_examples, async_delete_pet_issues, pets
+from .phones import async_check_phones, async_delete_phone_issues
+from .questions import Asker, async_clear_questions
 from .repairs import async_delete_source_issues, async_follow_renames, async_watch_entities
 from .sources import Analyzer, SourceWatcher, source_settings, sources
-from .views import ExampleView
+from .views import ExampleView, PictureView
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.EVENT, Platform.IMAGE, Platform.SENSOR]
 
@@ -54,8 +56,9 @@ type PetRecognitionConfigEntry = ConfigEntry[PetRecognitionData]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Serve the crops of the examples, and follow the entities the sources rename."""
+    """Serve the crops of the examples and questions, and follow the entities the sources rename."""
     hass.http.register_view(ExampleView())
+    hass.http.register_view(PictureView())
     async_follow_renames(hass)
     return True
 
@@ -114,14 +117,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: PetRecognitionConfigEntr
     entry.async_on_unload(coordinator.async_add_listener(_engine_updated))
     _engine_updated()
 
+    settings = {
+        source_id: source_settings(entry, subentry)
+        for source_id, subentry in sources(entry).items()
+    }
     # Before the purge, which keeps whole the visits it groups.
-    history = History(
-        journal,
-        {
-            source_id: source_settings(entry, subentry).visits
-            for source_id, subentry in sources(entry).items()
-        },
-    )
+    history = History(journal, {source_id: each.visits for source_id, each in settings.items()})
     entry.async_on_unload(history.async_start())
 
     async def _async_purge(_now: datetime | None = None) -> None:
@@ -137,11 +138,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: PetRecognitionConfigEntr
     entry.async_on_unload(async_watch_entities(hass, entry))
 
     counter = VisitCounter(hass, journal, history)
+    asker = Asker(hass, entry, journal, history, examples, counter, settings)
+    async_check_phones(hass, entry_options(entry).phones)
     entry.runtime_data = PetRecognitionData(
         client, coordinator, examples, journal, history, counter, analyzer
     )
     entry.async_on_unload(entry.add_update_listener(_async_reload))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(asker.async_start())
     # Once the event entities listen, so that a visit that ended while Home
     # Assistant was stopped is announced to them.
     entry.async_on_unload(counter.async_start())
@@ -163,10 +167,15 @@ async def async_unload_entry(hass: HomeAssistant, entry: PetRecognitionConfigEnt
         ir.async_delete_issue(hass, DOMAIN, issue)
     async_delete_pet_issues(hass)
     async_delete_source_issues(hass)
+    async_delete_phone_issues(hass)
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: PetRecognitionConfigEntry) -> None:
-    """Delete the examples, the journal and the files of a deleted entry."""
+    """Delete the examples, the journal and the files of a deleted entry.
+
+    Its open questions are removed from the phones first.
+    """
+    await async_clear_questions(hass, await async_get_journal(hass, entry.entry_id))
     await async_remove_journal(hass, entry.entry_id)
     await async_remove_data(hass, entry.entry_id)

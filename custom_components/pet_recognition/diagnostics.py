@@ -58,6 +58,9 @@ async def async_get_config_entry_diagnostics(
             "min_area": options.min_area,
             "detection_limit": options.detection_limit,
             "retention_days": options.retention_days,
+            # Counted instead of named.
+            "phones": len(options.phones),
+            "ask_while_learning": options.ask_while_learning,
         },
         "connected": coordinator.last_update_success,
         "last_error": None if error is None else type(error.__cause__ or error).__name__,
@@ -86,6 +89,12 @@ async def async_get_config_entry_diagnostics(
                 ),
                 "pending": len(journal.pending(source_id)),
                 "visits_today": counter.today(source_id).visits,
+                "ask_when_unsure": settings.ask_when_unsure,
+                "questions": dict(
+                    sorted(
+                        Counter(doubt.state.value for doubt in journal.doubts(source_id)).items()
+                    )
+                ),
             }
             for number, (source_id, subentry) in enumerate(sources(entry).items(), start=1)
             for settings in (source_settings(entry, subentry),)

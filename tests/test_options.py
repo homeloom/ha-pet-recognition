@@ -42,7 +42,7 @@ async def shown_defaults(hass: HomeAssistant, entry: MockConfigEntry) -> dict[st
     result = await hass.config_entries.options.async_init(entry.entry_id)
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "init"
-    (advanced,) = result["data_schema"].schema.values()
+    advanced = result["data_schema"].schema["advanced"]
     defaults = {
         str(key): key.default() for key in advanced.schema.schema if isinstance(key, vol.Required)
     }
@@ -82,10 +82,12 @@ async def test_the_options_start_from_their_defaults(
         "min_area": 0.01,
         "detection_limit": 5,
         "retention_days": 7,
+        "phones": 0,
+        "ask_while_learning": True,
     }
 
     await change(hass, entry)
-    assert entry.options == CHANGED
+    assert entry.options == {**CHANGED, "phones": [], "ask_while_learning": True}
     flow = await shown_defaults(hass, entry)
     del flow["flow_id"]
     assert flow == CHANGED

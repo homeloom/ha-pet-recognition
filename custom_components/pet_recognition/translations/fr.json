@@ -417,6 +417,33 @@
       }
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options de reconnaissance",
+        "description": "Les changements s'appliquent aux nouvelles photos, une fois l'intégration rechargée.",
+        "sections": {
+          "advanced": {
+            "name": "Reconnaissance",
+            "data": {
+              "threshold": "Score pour décider",
+              "margin": "Avance sur l'animal suivant",
+              "min_area": "Plus petit animal",
+              "detection_limit": "Animaux par photo",
+              "retention": "Jours conservés"
+            },
+            "data_description": {
+              "threshold": "À quel point un animal doit ressembler aux exemples d'un animal déclaré, de 0 à 1, pour être reconnu. Plus haut veut dire moins d'erreurs et plus de visites inconnues.",
+              "margin": "L'avance que le score doit avoir sur l'animal suivant.",
+              "min_area": "Les animaux plus petits que cette part de la photo sont ignorés, par exemple au loin dans un jardin.",
+              "detection_limit": "Le nombre maximal d'animaux cherchés dans une photo.",
+              "retention": "Combien de temps les photos, leurs recadrages et le journal sont gardés. Home Assistant garde les statistiques longues."
+            }
+          }
+        }
+      }
+    }
+  },
   "selector": {
     "species": {
       "options": {

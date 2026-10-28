@@ -417,6 +417,33 @@
       }
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Recognition options",
+        "description": "Changes apply to new pictures, once the integration loads again.",
+        "sections": {
+          "advanced": {
+            "name": "Recognition",
+            "data": {
+              "threshold": "Score to decide",
+              "margin": "Margin over the next pet",
+              "min_area": "Smallest animal",
+              "detection_limit": "Animals per picture",
+              "retention": "Days kept"
+            },
+            "data_description": {
+              "threshold": "How much an animal must resemble the examples of a pet, from 0 to 1, for the pet to be decided. Higher means fewer mistakes and more unknown visits.",
+              "margin": "How far ahead of the next pet the score must be.",
+              "min_area": "Animals smaller than this share of a picture are left out, such as far away in a garden.",
+              "detection_limit": "The most animals looked for in one picture.",
+              "retention": "How long pictures, their crops and the journal are kept. Long-term statistics are kept by Home Assistant."
+            }
+          }
+        }
+      }
+    }
+  },
   "selector": {
     "species": {
       "options": {

@@ -53,8 +53,6 @@ from .const import (
     CONF_PETS,
     CONF_SPECIES,
     CONF_TRIGGER,
-    DETECTION_LIMIT,
-    MIN_AREA,
     SUBENTRY_SOURCE,
 )
 from .coordinator import EngineCoordinator
@@ -71,6 +69,7 @@ from .engine import (
 from .examples import ExampleStore, stored_vector
 from .files import new_id
 from .journal import Detection, Journal, Pending, Record, Seen, Status
+from .options import entry_options
 from .pets import UNUSABLE_CROP, pets
 
 _LOGGER = logging.getLogger(__name__)
@@ -311,14 +310,15 @@ class Analyzer:
             await self._journal.async_record(pending, _record(pending, Status.UNREADABLE))
             return True
         settings = source_settings(self._entry, subentry)
+        options = entry_options(self._entry)
         wanted = {
             pet.data[CONF_SPECIES] for key, pet in pets(self._entry).items() if key in settings.pets
         }
         try:
             analysis = await self._coordinator.client.analyze(
                 picture,
-                min_area=MIN_AREA,
-                limit=DETECTION_LIMIT,
+                min_area=options.min_area,
+                limit=options.detection_limit,
                 species=frozenset(wanted & info.species or info.species),
             )
         except EngineRejectedError as err:
@@ -342,7 +342,7 @@ class Analyzer:
             return False
         except EngineError as err:
             return await self._async_failed(pending, err)
-        record, crops = self._match(pending, analysis, settings)
+        record, crops = self._match(pending, analysis, settings, options.match)
         await self._journal.async_record(pending, record, crops)
         self._delay = FIRST_RETRY
         return True
@@ -375,7 +375,11 @@ class Analyzer:
         self.async_wake()
 
     def _match(
-        self, pending: Pending, analysis: Analysis, settings: SourceSettings
+        self,
+        pending: Pending,
+        analysis: Analysis,
+        settings: SourceSettings,
+        match: MatchSettings,
     ) -> tuple[Record, list[tuple[str, bytes]]]:
         """Which pets the animals of a picture are, as far as their examples tell."""
         expected = list(settings.pets)
@@ -385,7 +389,7 @@ class Analyzer:
         for animal in analysis.animals:
             vector = stored_vector(animal.embedding)
             scores = Nearest.compute(vector, analysis.model, self._examples.gallery).scores()
-            decided.append(decide(scores, expected, MatchSettings()))
+            decided.append(decide(scores, expected, match))
             crop = new_id()
             crops.append((crop, animal.crop))
             record.detections.append(

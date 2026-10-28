@@ -18,7 +18,7 @@ from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
 from .cameras import CameraWatcher
-from .const import CONF_ENTITIES, DOMAIN, RETENTION_DAYS
+from .const import CONF_ENTITIES, DOMAIN
 from .coordinator import ISSUES, EngineCoordinator
 from .core.matching import OTHER_ANIMAL
 from .counts import VisitCounter
@@ -26,6 +26,7 @@ from .engine import EngineClient
 from .examples import ExampleStore, async_get_store, async_remove_data
 from .history import History
 from .journal import Journal, async_get_journal, async_remove_journal
+from .options import entry_options
 from .pets import Reembedder, async_check_examples, async_delete_pet_issues, pets
 from .repairs import async_delete_source_issues, async_follow_renames, async_watch_entities
 from .sources import Analyzer, SourceWatcher, source_settings, sources
@@ -124,7 +125,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: PetRecognitionConfigEntr
     entry.async_on_unload(history.async_start())
 
     async def _async_purge(_now: datetime | None = None) -> None:
-        before = dt_util.utcnow() - timedelta(days=RETENTION_DAYS)
+        before = dt_util.utcnow() - timedelta(days=entry_options(entry).retention_days)
         await journal.async_purge(before.timestamp())
 
     await _async_purge()

@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Options of the entry: the score and margin that decide a pet, the
+  smallest animal and the most animals in a picture of a source, and how
+  many days pictures are kept (7 by default, from 2 to 30). They are in the
+  diagnostics.
+
 ## [0.1.0] - 2026-10-28
 
 The first release: pets are recognized at their sources, and their visits

@@ -255,7 +255,7 @@ async def test_a_burst_stops_when_it_is_cancelled(
             await asyncio.sleep(0)
         except asyncio.CancelledError:
             raise HomeAssistantError("Unable to get image") from None
-        raise AssertionError  # pragma: no cover
+        raise AssertionError  # pragma: no cover - the task was cancelled above
 
     entry = await garden(hass, aioclient_mock, shown, GARDEN, PATIO)
     with patch("custom_components.pet_recognition.cameras.async_get_image", get):

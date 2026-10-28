@@ -28,7 +28,7 @@ concurrency:
 jobs:
   hygiene:
     if: github.event.pull_request.draft != true
-    uses: homeloom/ci/.github/workflows/hygiene.yml@a0f76324c11738e82bb44b61c2f4746d750cb3b0 # v0.1.1
+    uses: homeloom/ci/.github/workflows/hygiene.yml@cb3fd0ad14fb010a77593c28b2c0783a22074aeb # v0.2.5
     permissions:
       contents: read
       # The hygiene job reads the current pull request title and body.
@@ -45,21 +45,23 @@ jobs:
 
   lint:
     if: github.event.pull_request.draft != true
-    uses: homeloom/ci/.github/workflows/python-lint.yml@a0f76324c11738e82bb44b61c2f4746d750cb3b0 # v0.1.1
+    uses: homeloom/ci/.github/workflows/python-lint.yml@cb3fd0ad14fb010a77593c28b2c0783a22074aeb # v0.2.5
 
   tests:
     if: github.event.pull_request.draft != true
-    uses: homeloom/ci/.github/workflows/ha-tests.yml@a0f76324c11738e82bb44b61c2f4746d750cb3b0 # v0.1.1
+    uses: homeloom/ci/.github/workflows/ha-tests.yml@cb3fd0ad14fb010a77593c28b2c0783a22074aeb # v0.2.5
 
   validate:
     if: github.event.pull_request.draft != true
-    uses: homeloom/ci/.github/workflows/ha-integration.yml@a0f76324c11738e82bb44b61c2f4746d750cb3b0 # v0.1.1
+    uses: homeloom/ci/.github/workflows/ha-integration.yml@cb3fd0ad14fb010a77593c28b2c0783a22074aeb # v0.2.5
 
   # The app's Python package, tested with small generated models. The real
   # models are only downloaded when the app is built.
   engine:
     if: github.event.pull_request.draft != true
-    runs-on: ubuntu-24.04
+    # The same runner as the shared workflows: see "Runners" in the README
+    # of homeloom/ci.
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-24.04"') }}
     timeout-minutes: 10
     permissions:
       contents: read
@@ -77,6 +79,15 @@ jobs:
         with:
           python-version: "3.13"
 
+      # Self-hosted runners keep the Python of the tool cache from one job to
+      # the next, so the job installs into its own virtual environment: the
+      # integration's test plugins, installed there by other jobs, must not
+      # load in the app's tests. The runner deletes RUNNER_TEMP after the job.
+      - name: Create a virtual environment
+        run: |
+          python -m venv "${RUNNER_TEMP}/engine-venv"
+          echo "${RUNNER_TEMP}/engine-venv/bin" >> "$GITHUB_PATH"
+
       - name: Install dependencies
         run: python -m pip install --requirement requirements.txt --requirement requirements_test.txt
 
@@ -91,7 +102,9 @@ jobs:
     # marking it ready for review starts a full run.
     if: ${{ always() && github.event.pull_request.draft != true }}
     needs: [hygiene, lint, tests, validate, engine]
-    runs-on: ubuntu-24.04
+    # The same runner as the shared workflows: see "Runners" in the README
+    # of homeloom/ci.
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-24.04"') }}
     timeout-minutes: 2
     permissions: {}
     steps:

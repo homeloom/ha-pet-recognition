@@ -106,6 +106,8 @@ async def test_a_source_of_images_is_added(
         },
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
+    # The entry loads again with the source.
+    await hass.async_block_till_done()
     (subentry,) = (item for item in entry.subentries.values() if item.subentry_type == "source")
     assert subentry.title == "Feeder"
     assert dict(subentry.data) == {
@@ -143,6 +145,8 @@ async def test_a_source_with_a_camera_needs_a_trigger(
     user_input["camera"] |= {"trigger": "event.doorbell"}
     result = await hass.config_entries.subentries.async_configure(result["flow_id"], user_input)
     assert result["type"] is FlowResultType.CREATE_ENTRY
+    # The entry loads again with the source.
+    await hass.async_block_till_done()
     (subentry,) = (item for item in entry.subentries.values() if item.subentry_type == "source")
     assert subentry.data["entities"] == ["camera.garden", "image.feeder"]
     assert (subentry.data["trigger"], subentry.data["frames"], subentry.data["interval"]) == (

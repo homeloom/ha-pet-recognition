@@ -574,6 +574,7 @@ async def test_the_diagnostics_count_the_pictures_of_each_source(
             "trigger": False,
             "pictures": {"analyzed": 1, "unreadable": 1},
             "pending": 0,
+            "visits_today": 0,
         }
     ]
     assert diagnostics["pending"] == 0

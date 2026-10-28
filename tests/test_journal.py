@@ -487,3 +487,26 @@ async def test_one_journal_per_entry_until_it_is_removed(
     assert KEY not in hass_storage
     assert await async_get_journal(hass, ENTRY) is not journal
     await async_remove_journal(hass, "never-set-up")
+
+
+async def test_the_visits_announced_are_kept_across_restarts(
+    hass: HomeAssistant,
+    hass_storage: dict[str, Any],
+    freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    journal = await loaded(hass)
+    journal.async_announce("source", 100)
+    journal.async_announce("gone", 50)
+    await saved(hass, freezer)
+    assert hass_storage[KEY]["data"]["announced"] == {"source": 100, "gone": 50}
+    assert (await loaded(hass)).announced == {"source": 100, "gone": 50}
+
+    await journal.async_keep({"source": ["image.feeder"]}, set())
+    assert journal.announced == {"source": 100}
+
+    hass_storage[KEY] = stored({"announced": {"source": 7, "late": "now", "never": True}})
+    assert (await loaded(hass)).announced == {"source": 7}
+    hass_storage[KEY] = stored({"announced": ["source"]})
+    assert (await loaded(hass)).announced == {}
+    assert caplog.text.count("cannot be read, and") == 3

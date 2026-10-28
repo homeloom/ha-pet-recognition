@@ -21,7 +21,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 from custom_components.pet_recognition.const import DOMAIN
 
 from .answers import URL, error, info
-from .common import SENSOR, configured
+from .common import SENSOR, VERSION, configured
 
 
 async def set_up(hass: HomeAssistant) -> MockConfigEntry:
@@ -189,13 +189,13 @@ async def test_the_integration_compares_its_own_release(
     freezer: FrozenDateTimeFactory,
     issue_registry: ir.IssueRegistry,
 ) -> None:
-    answer(aioclient_mock, json=info(version="0.1.0"))
+    answer(aioclient_mock, json=info(version=VERSION))
     entry = await set_up(hass)
     coordinator = entry.runtime_data.coordinator
-    # The manifest's version, which is not a release before the first one.
-    assert coordinator.version == "0.0.0"
+    # The manifest's version, the engine's too.
+    assert coordinator.version == VERSION
     assert not issue_registry.issues
-    coordinator.version = "0.2.0"
+    coordinator.version = "99.0.0"
     await later(hass, freezer, 1)
     assert issue_registry.async_get_issue(DOMAIN, "engine_version_mismatch")
 

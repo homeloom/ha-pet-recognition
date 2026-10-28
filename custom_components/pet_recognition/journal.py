@@ -25,6 +25,10 @@ picture where each pet was recognized, stay past both limits, so that
 what was last seen is still known. So do the pictures the entry's history
 protects: the whole visits its entities show, and the visits that have not
 ended before the age limit, so that a visit goes as a whole.
+
+The journal also remembers, for each source, the start of the latest visit
+announced as ended, so that a visit is announced once, even across a
+restart.
 """
 
 from __future__ import annotations
@@ -157,6 +161,8 @@ class Journal:
         self.seen: dict[str, Seen] = {}
         self.queue: list[Pending] = []
         self.records: list[Record] = []
+        # By source, the start of the latest visit announced as ended.
+        self.announced: dict[str, float] = {}
         # The stored form of each record, by ID, made again only when it changes.
         self._rows: dict[str, dict[str, Any]] = {}
         self._listeners: list[Callable[[], None]] = []
@@ -172,6 +178,7 @@ class Journal:
         self.seen = {seen.entity: seen for seen in _read_list(stored, "seen", _seen)}
         self.queue = _read_list(stored, "queue", _pending)
         self.records = _read_list(stored, "pictures", _record)
+        self.announced = _read_announced(stored)
 
     async def async_delete_unknown_files(self) -> None:
         """Delete the files the journal does not name."""
@@ -269,6 +276,12 @@ class Journal:
         )
 
     @callback
+    def async_announce(self, source: str, start: float) -> None:
+        """Remember the start of the latest visit of a source announced as ended."""
+        self.announced[source] = start
+        self._save()
+
+    @callback
     def async_retry(self, pending: Pending) -> None:
         """Count a failed attempt at a waiting picture."""
         pending.attempts += 1
@@ -347,6 +360,9 @@ class Journal:
                 self._rows.pop(record.id, None)
                 changed = True
         old = [record for record in self.records if record.source not in sources]
+        for source in set(self.announced) - set(sources):
+            del self.announced[source]
+            changed = True
         if changed or gone or old:
             await self._changed(frames=[pending.id for pending in gone], records=old)
 
@@ -434,6 +450,7 @@ class Journal:
                 for pending in self.queue
             ],
             "pictures": [self._row(record) for record in self.records],
+            "announced": dict(self.announced),
         }
 
     def _delete_unknown_files(self, frames: set[str], crops: set[str]) -> None:
@@ -513,6 +530,23 @@ def _read_list[T](stored: Mapping[str, Any], key: str, parse: Callable[[Any], T]
         except (KeyError, TypeError, ValueError) as err:
             _LOGGER.warning("A record of the journal cannot be read, and is ignored: %s", err)
     return valid
+
+
+def _read_announced(stored: Mapping[str, Any]) -> dict[str, float]:
+    """The start of the latest visit announced of each source; unreadable ones are left out."""
+    value = stored.get("announced", {})
+    if not isinstance(value, dict):
+        _LOGGER.warning("The announced visits of the journal cannot be read, and are ignored")
+        return {}
+    announced: dict[str, float] = {}
+    for source, start in value.items():
+        try:
+            announced[_text(source)] = _number(start)
+        except ValueError as err:
+            _LOGGER.warning(
+                "An announced visit of the journal cannot be read, and is ignored: %s", err
+            )
+    return announced
 
 
 def _text(value: object) -> str:

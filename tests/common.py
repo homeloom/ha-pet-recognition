@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 from homeassistant.config_entries import ConfigSubentryData
@@ -14,6 +16,12 @@ from custom_components.pet_recognition.const import DOMAIN
 from .answers import KEY, URL
 
 SENSOR = "binary_sensor.pet_recognition_engine"
+# The version of the integration, which the engine of the same release shares.
+VERSION = json.loads(
+    (Path(__file__).parents[1] / "custom_components/pet_recognition/manifest.json").read_text(
+        encoding="utf-8"
+    )
+)["version"]
 
 
 def configured(

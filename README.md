@@ -3,9 +3,9 @@
 Tell which of your pets appears in pictures from Home Assistant, count their
 visits, and learn from your answers. Everything runs locally.
 
-> **Status: in development.** This version contains the recognition logic,
-> the engine app, the connection to the engine and its health, and pets.
-> Sources cannot be added yet, so nothing is recognized yet.
+> **Status: first release.** Pets are recognized at their sources, and
+> their visits counted per day. Questions when it is unsure, and learning
+> from the answers, come in a later release.
 
 ## Setup
 
@@ -108,6 +108,33 @@ Each pet's device adds **Last seen**, when the latest visit where the pet
 was recognized started, with the source and the confidence as attributes,
 and **Last picture**, the pet's crop in that picture. The integration's own
 device has **Pending pictures**, the pictures waiting for the engine.
+
+### Visits and counts
+
+Pictures of a source that follow each other, each at most the gap after
+the previous one, form a visit: a meal at a feeder, a trip to the litter
+box. A visit ends when no picture can join it any more, the gap and the
+lateness of pictures after its last picture. Each pet counts once per
+visit, even when two pets take turns.
+
+Each source's device then has:
+
+- **Visits today**: the visits that ended among those that started today,
+  unknown ones included.
+- One count per pet expected at the source, **<pet> meals today** at a feeder
+  and **<pet> visits today** elsewhere.
+- **Visit**, an event entity that announces `visit_ended` once for each
+  visit, with `visit_id`, `pets` (their names), `other_animal`, `unsure`
+  (a part of the visit is still unknown), `start`, `end` and `pictures`.
+  Use it in automations, such as a notification when a pet ate.
+
+A visit counts on the day it started, even when it ends after midnight, and
+the counts start again at midnight. Each count gives the day before as its
+`yesterday` attribute, and keeps long-term statistics in Home Assistant.
+The counts are computed again from the journal, so a restart loses none,
+and a visit that ended while Home Assistant was stopped is announced once
+when it starts again. The counts of a pet removed, or no longer expected at
+a source, are removed.
 
 ### Pictures kept
 

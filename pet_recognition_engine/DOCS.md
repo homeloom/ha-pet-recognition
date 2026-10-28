@@ -36,10 +36,12 @@ gives the address to enter, such as `http://<hostname>:8765`. Then:
 ## Without the Supervisor
 
 With Home Assistant in a container, build and run the same image with
-Docker, then add the integration by hand with the engine's URL and key:
+Docker, then add the integration by hand with the engine's URL and key.
+Build it with the release you checked out, the `version` of `config.yaml`,
+so that the integration can tell whether both are of the same release:
 
 ```sh
-docker build -t pet-recognition-engine .
+docker build --build-arg BUILD_VERSION=<version> -t pet-recognition-engine .
 docker run -d --name pet-recognition-engine -p 8765:8765 \
   -e API_KEY=<a key of at least 16 characters> pet-recognition-engine
 ```

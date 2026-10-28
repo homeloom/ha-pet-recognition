@@ -19,7 +19,7 @@ from custom_components.pet_recognition.diagnostics import (
 from custom_components.pet_recognition.examples import Candidate, Origin
 
 from .answers import CROP, KEY, MODEL, URL, error, info, unit
-from .common import configured
+from .common import VERSION, configured
 
 
 async def test_the_diagnostics_of_a_connected_engine(
@@ -29,7 +29,7 @@ async def test_the_diagnostics_of_a_connected_engine(
     aioclient_mock.get(f"{URL}/v1/info", json=info())
     assert await hass.config_entries.async_setup(entry.entry_id)
     assert await async_get_config_entry_diagnostics(hass, entry) == {
-        "integration_version": "0.0.0",
+        "integration_version": VERSION,
         "state": "loaded",
         "engine": {
             "version": "0.1.0",
@@ -61,7 +61,7 @@ async def test_the_diagnostics_of_an_engine_that_stopped(
     await hass.async_block_till_done()
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
     assert diagnostics == {
-        "integration_version": "0.0.0",
+        "integration_version": VERSION,
         "state": "loaded",
         "engine": None,
         "connected": False,
@@ -82,7 +82,7 @@ async def test_the_diagnostics_of_an_entry_that_did_not_load(
     aioclient_mock.get(f"{URL}/v1/info", status=401, json=error("unauthorized"))
     assert not await hass.config_entries.async_setup(entry.entry_id)
     assert await async_get_config_entry_diagnostics(hass, entry) == {
-        "integration_version": "0.0.0",
+        "integration_version": VERSION,
         "state": "setup_error",
         "engine": None,
     }

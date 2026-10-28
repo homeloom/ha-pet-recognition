@@ -262,6 +262,40 @@
         "name": "Engine"
       }
     },
+    "event": {
+      "visit": {
+        "name": "Visit",
+        "state_attributes": {
+          "event_type": {
+            "name": "Event type",
+            "state": {
+              "visit_ended": "Visit ended"
+            }
+          },
+          "visit_id": {
+            "name": "Visit"
+          },
+          "pets": {
+            "name": "Pets"
+          },
+          "other_animal": {
+            "name": "Other animal"
+          },
+          "unsure": {
+            "name": "Unsure"
+          },
+          "start": {
+            "name": "Start"
+          },
+          "end": {
+            "name": "End"
+          },
+          "pictures": {
+            "name": "Pictures"
+          }
+        }
+      }
+    },
     "image": {
       "last_picture": {
         "name": "Last picture"
@@ -297,6 +331,30 @@
       },
       "pending_pictures": {
         "name": "Pending pictures"
+      },
+      "visits_today": {
+        "name": "Visits today",
+        "state_attributes": {
+          "yesterday": {
+            "name": "Yesterday"
+          }
+        }
+      },
+      "pet_meals_today": {
+        "name": "{pet} meals today",
+        "state_attributes": {
+          "yesterday": {
+            "name": "Yesterday"
+          }
+        }
+      },
+      "pet_visits_today": {
+        "name": "{pet} visits today",
+        "state_attributes": {
+          "yesterday": {
+            "name": "Yesterday"
+          }
+        }
       }
     }
   },

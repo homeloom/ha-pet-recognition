@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-28
+
+The first release: pets are recognized at their sources, and their visits
+counted.
+
 ### Added
 
 - Matching of animal embeddings to the examples of each pet, as plain Python
@@ -64,3 +69,16 @@ All notable changes to this project are documented here. The format follows
   entities show, so that they keep their value.
 - Sources follow the renames of their entities, and a repair with a fix
   names a source whose entity was removed.
+- Visits counted per day, once they ended: **Visits today** for each
+  source, unknown visits included, and one count per pet expected there,
+  **meals** at a feeder and **visits** elsewhere, each with yesterday's
+  count as an attribute. A visit counts on the day it started, and the
+  counts start again at midnight. They are computed again from the journal
+  after a restart. The counts of pets removed, or no longer expected at a
+  source, are removed.
+- A **Visit** event entity for each source, which announces `visit_ended`
+  once for each visit, with its pets, whether another animal or an unknown
+  one came, its start and end, and its number of pictures. A visit that
+  ended while Home Assistant was stopped is announced when it starts again.
+- Releases are published from the version of the manifest, which the app
+  shares.

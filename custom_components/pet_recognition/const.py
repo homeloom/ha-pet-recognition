@@ -14,10 +14,13 @@ CONF_SPECIES: Final = "species"
 # The species a pet can be, which the engine detects.
 SPECIES: Final = ("cat", "dog", "bird")
 
-# An animal smaller than this share of a picture is left out.
+# In a photo of a pet, an animal smaller than this share of the photo is
+# left out; the options set it for the pictures of the sources.
 MIN_AREA: Final = 0.01
-# The most animals asked of the engine in one picture.
+# The most animals asked of the engine in one picture, by default for the
+# pictures of the sources.
 DETECTION_LIMIT: Final = 5
+MAX_DETECTION_LIMIT: Final = 10
 # The most examples a pet keeps per model.
 EXAMPLE_LIMIT: Final = 200
 
@@ -47,8 +50,21 @@ DEFAULT_LATE: Final = 2
 DEFAULT_FRAMES: Final = 6
 DEFAULT_INTERVAL: Final = 10
 
-# How long pictures and their crops are kept, in days.
-RETENTION_DAYS: Final = 7
+# The options of the entry, which tune the recognition of the pictures of
+# the sources: the score and margin of a decision, the smallest animal, in
+# percent of a picture, the most animals in a picture, and how long pictures
+# and their crops are kept, in days.
+CONF_THRESHOLD: Final = "threshold"
+CONF_MARGIN: Final = "margin"
+CONF_MIN_AREA: Final = "min_area"
+CONF_DETECTION_LIMIT: Final = "detection_limit"
+CONF_RETENTION: Final = "retention"
+DEFAULT_THRESHOLD: Final = 0.6
+DEFAULT_MARGIN: Final = 0.04
+DEFAULT_MIN_AREA: Final = 1
+DEFAULT_RETENTION: Final = 7
+MIN_RETENTION: Final = 2
+MAX_RETENTION: Final = 30
 # The most pictures waiting for the engine, and kept per source.
 QUEUE_LIMIT: Final = 100
 PICTURE_LIMIT: Final = 2000

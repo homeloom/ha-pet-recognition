@@ -71,6 +71,7 @@ from .engine import (
 )
 from .examples import Candidate, Origin, stored_vector
 from .files import new_id
+from .options import PetRecognitionOptionsFlow
 from .pets import PictureError, async_candidate, async_capture
 from .source_flow import SourceFlow
 from .views import signed_example_url
@@ -122,6 +123,12 @@ class PetRecognitionConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> dict[str, type[ConfigSubentryFlow]]:
         """Pets and sources are subentries."""
         return {SUBENTRY_PET: PetFlow, SUBENTRY_SOURCE: SourceFlow}
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> PetRecognitionOptionsFlow:
+        """The options of the recognition."""
+        return PetRecognitionOptionsFlow()
 
     def __init__(self) -> None:
         self._discovered: dict[str, str] = {}

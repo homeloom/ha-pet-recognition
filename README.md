@@ -143,9 +143,9 @@ source where an animal was found, which **Last picture** shows. A picture
 where no animal is found, such as a garden camera's picture of people
 passing by, is never kept. What was found in each picture is kept in a
 journal in Home Assistant's storage, with the crop of each animal under
-`pet_recognition/` in the configuration directory, for 7 days and at most
-2000 pictures per source. A visit goes as a whole, once it ended more than
-7 days ago, and the latest visit of each source, and the visit where each
+`pet_recognition/` in the configuration directory, for 7 days by default
+(see the options) and at most 2000 pictures per source. A visit goes as a
+whole, once it ended before that, and the latest visit of each source, and the visit where each
 pet was last seen, stay past those limits, so that the entities keep their
 value. At most 100 pictures wait for the engine. Deleting
 a source deletes its journal and crops.
@@ -156,6 +156,27 @@ When you rename an entity of a source, or its trigger, the source follows
 the new name. When one is removed from Home Assistant, a repair names the
 source once Home Assistant has started, and its **Fix** chooses the
 entities the source uses now.
+
+## Options
+
+**Configure** on the integration's entry tunes how the pictures of the
+sources are recognized. Changes apply to new pictures once the integration
+loads again, which it does at once:
+
+- **Score to decide** (0.6): how much an animal must resemble the examples
+  of a pet, from 0 to 1, for the pet to be decided. Higher means fewer
+  mistakes and more unknown visits.
+- **Margin over the next pet** (0.04): how far ahead of the next pet the
+  score must be.
+- **Smallest animal** (1 %): animals smaller than this share of a picture
+  are left out, such as far away in a garden.
+- **Animals per picture** (5): the most animals looked for in one picture.
+- **Days kept** (7, from 2 to 30): how long pictures, their crops and the
+  journal are kept. Home Assistant keeps the long-term statistics of the
+  counts.
+
+Photos of pets, which become examples, keep the default smallest animal
+and animals per picture.
 
 ## How it will work
 

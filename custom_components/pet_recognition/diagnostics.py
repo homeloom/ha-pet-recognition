@@ -12,6 +12,7 @@ from homeassistant.loader import async_get_integration
 from . import PetRecognitionConfigEntry
 from .const import CONF_KIND, CONF_SPECIES, DOMAIN
 from .core.matching import Example
+from .options import entry_options
 from .pets import pets
 from .sources import source_settings, sources
 
@@ -36,6 +37,7 @@ async def async_get_config_entry_diagnostics(
     store = entry.runtime_data.examples
     journal = entry.runtime_data.journal
     counter = entry.runtime_data.counter
+    options = entry_options(entry)
     info = coordinator.data
     error = coordinator.last_exception
     return {
@@ -49,6 +51,13 @@ async def async_get_config_entry_diagnostics(
             "species": sorted(info.species),
             "max_bytes": info.max_bytes,
             "max_pixels": info.max_pixels,
+        },
+        "options": {
+            "threshold": options.match.threshold,
+            "margin": options.match.margin,
+            "min_area": options.min_area,
+            "detection_limit": options.detection_limit,
+            "retention_days": options.retention_days,
         },
         "connected": coordinator.last_update_success,
         "last_error": None if error is None else type(error.__cause__ or error).__name__,

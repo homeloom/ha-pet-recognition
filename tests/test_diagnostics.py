@@ -21,6 +21,14 @@ from custom_components.pet_recognition.examples import Candidate, Origin
 from .answers import CROP, KEY, MODEL, URL, error, info, unit
 from .common import VERSION, configured
 
+DEFAULT_OPTIONS = {
+    "threshold": 0.6,
+    "margin": 0.04,
+    "min_area": 0.01,
+    "detection_limit": 5,
+    "retention_days": 7,
+}
+
 
 async def test_the_diagnostics_of_a_connected_engine(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
@@ -38,6 +46,7 @@ async def test_the_diagnostics_of_a_connected_engine(
             "max_bytes": 20 * 1024 * 1024,
             "max_pixels": 40_000_000,
         },
+        "options": DEFAULT_OPTIONS,
         "connected": True,
         "last_error": None,
         "failing_since": None,
@@ -64,6 +73,7 @@ async def test_the_diagnostics_of_an_engine_that_stopped(
         "integration_version": VERSION,
         "state": "loaded",
         "engine": None,
+        "options": DEFAULT_OPTIONS,
         "connected": False,
         "last_error": "EngineConnectionError",
         "failing_since": started.isoformat(),

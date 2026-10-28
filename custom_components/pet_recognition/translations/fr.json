@@ -55,10 +55,103 @@
       "reconfigure_successful": "Le moteur a été changé."
     }
   },
+  "config_subentries": {
+    "pet": {
+      "entry_type": "Animal",
+      "initiate_flow": {
+        "user": "Ajouter un animal",
+        "reconfigure": "Modifier l'animal"
+      },
+      "step": {
+        "user": {
+          "title": "Ajouter un animal",
+          "description": "Nommez l'animal et choisissez son espèce. Les photos viennent ensuite.",
+          "data": {
+            "name": "Nom",
+            "species": "Espèce"
+          },
+          "data_description": {
+            "name": "Le nom affiché, par exemple dans les notifications.",
+            "species": "Seuls les animaux de cette espèce sont comparés à cet animal."
+          }
+        },
+        "photos": {
+          "title": "Photos de {pet}",
+          "description": "Photos pour l'instant : {count}. Ajoutez des photos où l'animal est seul, sous plusieurs angles et éclairages. D'autres pourront être ajoutées plus tard.",
+          "menu_options": {
+            "photo": "Téléverser une photo",
+            "capture": "Prendre une photo avec une caméra ou une image",
+            "finish": "Terminer"
+          }
+        },
+        "change": {
+          "title": "{pet}",
+          "description": "Exemples de {pet} : {count}.",
+          "menu_options": {
+            "photo": "Téléverser une photo",
+            "capture": "Prendre une photo avec une caméra ou une image",
+            "remove": "Supprimer des exemples",
+            "rename": "Renommer",
+            "done": "Terminé"
+          }
+        },
+        "photo": {
+          "title": "Téléverser une photo de {pet}",
+          "description": "Une photo JPEG, PNG ou WebP où {pet} est le seul animal. Validez sans photo pour revenir en arrière.",
+          "data": {
+            "photo": "Photo"
+          }
+        },
+        "capture": {
+          "title": "Prendre une photo de {pet}",
+          "description": "Prenez une photo maintenant depuis une entité caméra ou image, pendant que {pet} est le seul animal visible. Validez sans entité pour revenir en arrière.",
+          "data": {
+            "entity_id": "Caméra ou image"
+          }
+        },
+        "remove": {
+          "title": "Supprimer des exemples de {pet}",
+          "description": "Choisissez les exemples à supprimer, par exemple ceux qui montrent un autre animal.\n\n{pictures}",
+          "data": {
+            "examples": "Exemples"
+          }
+        },
+        "rename": {
+          "title": "Renommer l'animal",
+          "data": {
+            "name": "Nom"
+          }
+        }
+      },
+      "error": {
+        "cannot_analyze": "Le moteur n'a pas pu analyser cette photo.",
+        "cannot_capture": "Aucune photo n'a pu être prise depuis cette entité.",
+        "cannot_connect": "Le moteur est injoignable. Vérifiez qu'il tourne, puis réessayez.",
+        "duplicate_picture": "Cette photo est presque identique à un autre exemple.",
+        "empty_name": "Saisissez un nom.",
+        "engine_busy": "Le moteur est occupé. Réessayez dans un instant.",
+        "no_animal": "Aucun animal de cette espèce n'a été trouvé sur la photo.",
+        "picture_too_large": "La photo est trop grande pour le moteur.",
+        "several_animals": "Plusieurs animaux de cette espèce sont sur la photo. Utilisez une photo où l'animal est seul.",
+        "too_many_examples": "L'animal a déjà autant d'exemples qu'il peut en garder. Supprimez-en d'abord.",
+        "unreadable_picture": "Le moteur ne peut pas lire cette photo. Utilisez une photo JPEG, PNG ou WebP.",
+        "upload_failed": "La photo n'a pas pu être lue. Téléversez-la de nouveau."
+      },
+      "abort": {
+        "entry_not_loaded": "L'intégration n'est pas chargée. Vérifiez qu'elle est configurée, puis réessayez.",
+        "reconfigure_successful": "L'animal a été modifié."
+      }
+    }
+  },
   "entity": {
     "binary_sensor": {
       "engine": {
         "name": "Moteur"
+      }
+    },
+    "sensor": {
+      "examples": {
+        "name": "Exemples"
       }
     }
   },
@@ -89,6 +182,19 @@
     "engine_version_older": {
       "title": "Le Pet Recognition Engine est plus ancien que l'intégration",
       "description": "Le moteur est en version {engine} et l'intégration en version {integration}. Ils fonctionnent encore ensemble, mais mettez l'app ou le conteneur du moteur à jour pour qu'ils soient de la même version."
+    },
+    "pet_without_examples": {
+      "title": "{pet} n'a aucun exemple",
+      "description": "{pet} ne peut pas être reconnu sans photos. Ouvrez l'intégration, sélectionnez le bouton en forme d'engrenage de {pet} (**Modifier l'animal**) et ajoutez des photos où il est le seul animal."
+    }
+  },
+  "selector": {
+    "species": {
+      "options": {
+        "cat": "Chat",
+        "dog": "Chien",
+        "bird": "Oiseau"
+      }
     }
   }
 }

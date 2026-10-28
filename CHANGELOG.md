@@ -38,3 +38,11 @@ All notable changes to this project are documented here. The format follows
   longer serves the integration's API version or is of another release, and
   diagnostics without the engine's address or key. The entry now loads
   while the engine is stopped.
+- Pets, added in the UI with a name, a species and photos, uploaded or
+  taken from a camera or image entity. Each photo with exactly one animal
+  of the pet's species becomes an example; its embedding is stored, and its
+  crop kept under the configuration directory. A pet's settings add photos,
+  remove examples shown with their pictures, and rename it. A repair names
+  each pet without examples, and examples are embedded again when the
+  engine's model changes, the photos given by the user first; those are
+  never dropped. Each pet has a device and an examples sensor.

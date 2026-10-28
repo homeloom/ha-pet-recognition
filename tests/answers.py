@@ -68,9 +68,9 @@ def analysis(*animals: dict[str, Any], **changes: object) -> dict[str, Any]:
     return checked("analysis", {**body, **changes})
 
 
-def embedding(*values: float) -> dict[str, Any]:
+def embedding(*values: float, model: str = MODEL) -> dict[str, Any]:
     """The answer of /v1/embed."""
-    return checked("embedding", {"model": MODEL, "embedding": unit(*(values or (3, 4)))})
+    return checked("embedding", {"model": model, "embedding": unit(*(values or (3, 4)))})
 
 
 def error(code: str, message: str = "it failed") -> dict[str, Any]:

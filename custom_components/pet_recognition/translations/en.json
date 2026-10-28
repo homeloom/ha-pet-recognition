@@ -55,10 +55,103 @@
       "reconfigure_successful": "The engine was changed."
     }
   },
+  "config_subentries": {
+    "pet": {
+      "entry_type": "Pet",
+      "initiate_flow": {
+        "user": "Add pet",
+        "reconfigure": "Change pet"
+      },
+      "step": {
+        "user": {
+          "title": "Add a pet",
+          "description": "Name the pet and choose its species. Photos come next.",
+          "data": {
+            "name": "Name",
+            "species": "Species"
+          },
+          "data_description": {
+            "name": "How the pet is shown, such as in notifications.",
+            "species": "Only animals of this species are compared with the pet."
+          }
+        },
+        "photos": {
+          "title": "Photos of {pet}",
+          "description": "Photos so far: {count}. Add photos where the pet is the only animal, from different angles and lights. More can be added later.",
+          "menu_options": {
+            "photo": "Upload a photo",
+            "capture": "Take a photo from a camera or image",
+            "finish": "Finish"
+          }
+        },
+        "change": {
+          "title": "{pet}",
+          "description": "Examples of {pet}: {count}.",
+          "menu_options": {
+            "photo": "Upload a photo",
+            "capture": "Take a photo from a camera or image",
+            "remove": "Remove examples",
+            "rename": "Rename",
+            "done": "Done"
+          }
+        },
+        "photo": {
+          "title": "Upload a photo of {pet}",
+          "description": "A JPEG, PNG or WebP photo where {pet} is the only animal. Submit without a photo to go back.",
+          "data": {
+            "photo": "Photo"
+          }
+        },
+        "capture": {
+          "title": "Take a photo of {pet}",
+          "description": "Take a photo now from a camera or image entity, while {pet} is the only animal in view. Submit without an entity to go back.",
+          "data": {
+            "entity_id": "Camera or image"
+          }
+        },
+        "remove": {
+          "title": "Remove examples of {pet}",
+          "description": "Choose the examples to remove, such as those that show another animal.\n\n{pictures}",
+          "data": {
+            "examples": "Examples"
+          }
+        },
+        "rename": {
+          "title": "Rename the pet",
+          "data": {
+            "name": "Name"
+          }
+        }
+      },
+      "error": {
+        "cannot_analyze": "The engine could not analyze this photo.",
+        "cannot_capture": "No photo could be taken from this entity.",
+        "cannot_connect": "The engine cannot be reached. Check that it runs, then try again.",
+        "duplicate_picture": "This photo is almost the same as another example.",
+        "empty_name": "Enter a name.",
+        "engine_busy": "The engine is busy. Try again in a moment.",
+        "no_animal": "No animal of this species was found in the photo.",
+        "picture_too_large": "The photo is too large for the engine.",
+        "several_animals": "Several animals of this species are in the photo. Use a photo where the pet is alone.",
+        "too_many_examples": "The pet has as many examples as it can keep. Remove some first.",
+        "unreadable_picture": "The engine cannot read this photo. Use a JPEG, PNG or WebP photo.",
+        "upload_failed": "The photo could not be read. Upload it again."
+      },
+      "abort": {
+        "entry_not_loaded": "The integration is not loaded. Check that it is set up, then try again.",
+        "reconfigure_successful": "The pet was changed."
+      }
+    }
+  },
   "entity": {
     "binary_sensor": {
       "engine": {
         "name": "Engine"
+      }
+    },
+    "sensor": {
+      "examples": {
+        "name": "Examples"
       }
     }
   },
@@ -89,6 +182,19 @@
     "engine_version_older": {
       "title": "The Pet Recognition Engine is older than the integration",
       "description": "The engine is release {engine} and the integration release {integration}. They still work together, but update the engine app or container so that both are of the same release."
+    },
+    "pet_without_examples": {
+      "title": "{pet} has no examples",
+      "description": "{pet} cannot be recognized without photos. Open the integration, select the gear button of {pet} (**Change pet**), and add photos where it is the only animal."
+    }
+  },
+  "selector": {
+    "species": {
+      "options": {
+        "cat": "Cat",
+        "dog": "Dog",
+        "bird": "Bird"
+      }
     }
   }
 }

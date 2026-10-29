@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-29
+
+Pets are asked about on the phones when unsure, and learn from the answers
+and corrections.
+
 ### Added
 
 - Options of the entry: the score and margin that decide a pet, the
@@ -33,6 +38,15 @@ All notable changes to this project are documented here. The format follows
 - Unknown pictures are told again each time the examples change, and when
   the entry loads, so that an answer can tell who was at other visits and
   settle their questions. The comparisons run outside the event loop.
+- **Correct last visit**, a select of each source that corrects its latest
+  run to a pet, the unknown or the other animal.
+- **Visits to review**, a sensor of each source that counts the visits
+  that ended unsure.
+- The **Assign visit** action, for administrators, which corrects a whole
+  visit, given by its ID or by an entity of its source, and can answer
+  with the visit.
+- The **Visit** event announces `visit_corrected` when a correction changes
+  a visit that already ended.
 
 ## [0.1.0] - 2026-10-28
 

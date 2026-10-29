@@ -1,8 +1,6 @@
-"""Events: each visit of a source, once it ended."""
+"""Events: each visit of a source, once it ended, and once corrected."""
 
 from __future__ import annotations
-
-from datetime import UTC, datetime
 
 from homeassistant.components.event import EventEntity
 from homeassistant.config_entries import ConfigSubentry
@@ -10,17 +8,14 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import PetRecognitionConfigEntry
-from .core.matching import OTHER_ANIMAL
 from .core.visits import Visit
-from .counts import VisitCounter
+from .counts import VISIT_CORRECTED, VISIT_ENDED, VisitCounter, visit_data
 from .entity import subentry_device
 from .pets import pets
 from .sources import sources
 
 # Entities only read what the integration holds.
 PARALLEL_UPDATES = 0
-
-VISIT_ENDED = "visit_ended"
 
 
 async def async_setup_entry(
@@ -37,12 +32,9 @@ async def async_setup_entry(
         )
 
 
-def _time(timestamp: float) -> str:
-    return datetime.fromtimestamp(timestamp, UTC).isoformat()
-
-
 class VisitEvent(EventEntity):
-    """The visits of a source, each announced once when it ended."""
+    """The visits of a source, each announced once when it ended, and again
+    each time a correction changes it."""
 
     _attr_has_entity_name = True
     _attr_should_poll = False
@@ -55,7 +47,7 @@ class VisitEvent(EventEntity):
         counter: VisitCounter,
         titles: dict[str, str],
     ) -> None:
-        self._attr_event_types = [VISIT_ENDED]
+        self._attr_event_types = [VISIT_ENDED, VISIT_CORRECTED]
         self._source = subentry.subentry_id
         self._counter = counter
         self._titles = titles
@@ -65,20 +57,9 @@ class VisitEvent(EventEntity):
     async def async_added_to_hass(self) -> None:
         """Listen to the visits of the source that end."""
         await super().async_added_to_hass()
-        self.async_on_remove(self._counter.async_add_announcer(self._source, self._async_ended))
+        self.async_on_remove(self._counter.async_add_announcer(self._source, self._async_announced))
 
     @callback
-    def _async_ended(self, visit: Visit) -> None:
-        self._trigger_event(
-            VISIT_ENDED,
-            {
-                "visit_id": visit.id,
-                "pets": sorted(self._titles[pet] for pet in visit.pets if pet in self._titles),
-                "other_animal": OTHER_ANIMAL in visit.pets,
-                "unsure": visit.unsure,
-                "start": _time(visit.start),
-                "end": _time(visit.end),
-                "pictures": len(visit.pictures),
-            },
-        )
+    def _async_announced(self, kind: str, visit: Visit) -> None:
+        self._trigger_event(kind, visit_data(visit, self._titles))
         self.async_write_ha_state()

@@ -273,7 +273,8 @@
           "event_type": {
             "name": "Event type",
             "state": {
-              "visit_ended": "Visit ended"
+              "visit_ended": "Visit ended",
+              "visit_corrected": "Visit corrected"
             }
           },
           "visit_id": {
@@ -303,6 +304,15 @@
     "image": {
       "last_picture": {
         "name": "Last picture"
+      }
+    },
+    "select": {
+      "correct_last_visit": {
+        "name": "Correct last visit",
+        "state": {
+          "unknown_animal": "Unknown animal",
+          "other_animal": "Other animal"
+        }
       }
     },
     "sensor": {
@@ -359,6 +369,14 @@
             "name": "Yesterday"
           }
         }
+      },
+      "visits_to_review": {
+        "name": "Visits to review",
+        "state_attributes": {
+          "latest_visit_id": {
+            "name": "Latest visit"
+          }
+        }
       }
     }
   },
@@ -380,6 +398,18 @@
     },
     "question_other": {
       "message": "Other"
+    },
+    "no_visit": {
+      "message": "This source has no visit to correct."
+    },
+    "unknown_visit": {
+      "message": "No visit {visit_id} is kept at the sources of Pet Recognition."
+    },
+    "unknown_source": {
+      "message": "{entity_id} is no entity of a source of Pet Recognition."
+    },
+    "unknown_pet": {
+      "message": "Device {device_id} is no pet of that Pet Recognition entry."
     }
   },
   "issues": {
@@ -484,6 +514,30 @@
         "litter_box": "Litter box",
         "pet_door": "Pet door",
         "other": "Other"
+      }
+    }
+  },
+  "services": {
+    "assign_visit": {
+      "name": "Assign visit",
+      "description": "Says which pets were at a visit, which corrects all its pictures and teaches the animal of a single pet.",
+      "fields": {
+        "visit_id": {
+          "name": "Visit",
+          "description": "The ID of the visit, as its events and the visits to review give it."
+        },
+        "source": {
+          "name": "Source",
+          "description": "An entity of a source, for its latest visit, or to look for the visit there only."
+        },
+        "pets": {
+          "name": "Pets",
+          "description": "The pets that were there. None, without the other animal, says it is unknown."
+        },
+        "other_animal": {
+          "name": "Other animal",
+          "description": "An animal that is none of the pets was there too."
+        }
       }
     }
   }

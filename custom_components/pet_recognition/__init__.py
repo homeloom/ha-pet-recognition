@@ -32,10 +32,17 @@ from .pets import Reembedder, async_check_examples, async_delete_pet_issues, pet
 from .phones import async_check_phones, async_delete_phone_issues
 from .questions import Asker, async_clear_questions
 from .repairs import async_delete_source_issues, async_follow_renames, async_watch_entities
+from .services import async_setup_services
 from .sources import Analyzer, SourceWatcher, source_settings, sources
 from .views import ExampleView, PictureView
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.EVENT, Platform.IMAGE, Platform.SENSOR]
+PLATFORMS = [
+    Platform.BINARY_SENSOR,
+    Platform.EVENT,
+    Platform.IMAGE,
+    Platform.SELECT,
+    Platform.SENSOR,
+]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -58,10 +65,12 @@ type PetRecognitionConfigEntry = ConfigEntry[PetRecognitionData]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Serve the crops of the examples and questions, and follow the entities the sources rename."""
+    """Serve the crops of the examples and questions, follow the entities the
+    sources rename, and register the actions."""
     hass.http.register_view(ExampleView())
     hass.http.register_view(PictureView())
     async_follow_renames(hass)
+    async_setup_services(hass)
     return True
 
 
@@ -140,7 +149,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: PetRecognitionConfigEntr
     entry.async_on_unload(async_watch_entities(hass, entry))
 
     counter = VisitCounter(hass, journal, history)
-    learner = Learner(coordinator, journal, examples)
+    learner = Learner(coordinator, journal, examples, counter)
     asker = Asker(hass, entry, journal, history, examples, counter, learner, settings)
     rematcher = Rematcher(hass, entry, journal, examples, settings, entry_options(entry).match)
     async_check_phones(hass, entry_options(entry).phones)

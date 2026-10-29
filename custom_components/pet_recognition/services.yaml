@@ -1,0 +1,19 @@
+assign_visit:
+  fields:
+    visit_id:
+      example: 0123456789abcdef0123456789abcdef
+      selector:
+        text:
+    source:
+      selector:
+        entity:
+          integration: pet_recognition
+    pets:
+      selector:
+        device:
+          integration: pet_recognition
+          multiple: true
+    other_animal:
+      default: false
+      selector:
+        boolean:

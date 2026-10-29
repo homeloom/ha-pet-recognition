@@ -3,10 +3,9 @@
 Tell which of your pets appears in pictures from Home Assistant, count their
 visits, and learn from your answers. Everything runs locally.
 
-> **Status: first release.** Pets are recognized at their sources, and
-> their visits counted per day. Questions on the phones when it is unsure
-> are being added: they are sent and answered, and learning from the
-> answers comes next.
+> **Status: 0.2.** Pets are recognized at their sources, and their visits
+> counted per day. When it is unsure, it asks on the phones, and learns
+> from the answers and from the corrections you make.
 
 ## Setup
 
@@ -128,8 +127,12 @@ Each source's device then has:
   and **<pet> visits today** elsewhere.
 - **Visit**, an event entity that announces `visit_ended` once for each
   visit, with `visit_id`, `pets` (their names), `other_animal`, `unsure`
-  (a part of the visit is still unknown), `start`, `end` and `pictures`.
-  Use it in automations, such as a notification when a pet ate.
+  (a part of the visit is still unknown), `start`, `end` and `pictures`,
+  and `visit_corrected`, with the same data, each time a correction
+  changes a visit that already ended. Use it in automations, such as a
+  notification when a pet ate.
+- **Visits to review**: the visits that ended unsure, among the pictures
+  kept, with the ID of the latest as `latest_visit_id`.
 
 A visit counts on the day it started, even when it ends after midnight, and
 the counts start again at midnight. Each count gives the day before as its
@@ -138,6 +141,33 @@ The counts are computed again from the journal, so a restart loses none,
 and a visit that ended while Home Assistant was stopped is announced once
 when it starts again. The counts of a pet removed, or no longer expected at
 a source, are removed.
+
+### Correcting visits
+
+Each source's device has **Correct last visit**, which shows who was in its
+latest run of pictures: a pet expected there, `unknown_animal` or
+`other_animal`, and nothing for several pets. Choosing another option
+corrects the run. The **Assign visit** action (`pet_recognition.assign_visit`,
+for administrators) corrects a whole visit: give its `visit_id`, from the
+**Visit** events or **Visits to review**, or an entity of its source for its
+latest visit, and the pet devices that were there, with `other_animal` for
+an animal that is none of them. No pet says it is unknown. It can answer
+with the visit as it is now:
+
+```yaml
+action: pet_recognition.assign_visit
+data:
+  source: sensor.feeder_visits_to_review
+  pets:
+    - <device ID of a pet>
+```
+
+A correction relabels the pictures, so the counts and the visit follow,
+settles the questions about them, and announces `visit_corrected` once the
+visit ended. A single pet teaches the animal, as an answer does (see
+[Questions on the phones](#questions-on-the-phones)). The long-term
+statistics of a past day keep their value: a correction changes the journal,
+the counts of today and the events.
 
 ### Pictures kept
 
@@ -244,7 +274,7 @@ loads it from Home Assistant, through a link signed for 24 hours, which a
 restart of Home Assistant ends sooner. So the phone must reach Home
 Assistant to show it.
 
-## How it will work
+## How it works
 
 - **Pets** are declared in the Home Assistant UI, each with a few example
   photos.
@@ -259,8 +289,9 @@ Assistant to show it.
   others, and never while a pet expected at that source has no example yet.
 - Pictures that follow each other at a source form a **visit**, such as a
   meal at a feeder. Visits are counted per pet, per source and per day.
-- When it is unsure, it can send a notification with the picture and one
-  button per pet. The answer corrects the visit and becomes a new example.
+- When it is unsure, it can send a notification with the picture and
+  buttons for the likeliest pets. The answer corrects the visit and becomes
+  a new example.
 
 ## Repository layout
 

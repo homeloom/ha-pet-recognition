@@ -15,7 +15,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 
 from custom_components.pet_recognition.core.doubts import State
 from custom_components.pet_recognition.diagnostics import async_get_config_entry_diagnostics
-from custom_components.pet_recognition.journal import Journal
+from custom_components.pet_recognition.journal import Asked, Journal
 from custom_components.pet_recognition.phones import phone_users
 
 from .asking import PET_C, A, Phones, asking, only_question, visit
@@ -27,10 +27,14 @@ MEALS_B = "sensor.feeder_pet_b_meals_today"
 
 
 async def press(
-    hass: HomeAssistant, entry: MockConfigEntry, choice: str, user: str | None = "user_1"
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    choice: str,
+    user: str | None = "user_1",
+    question: Asked | None = None,
 ) -> None:
-    """Press a button of the only question, as the companion app of `user` says."""
-    action = f"PET_RECOGNITION|{only_question(entry).doubt.id}|{choice}"
+    """Press a button of `question`, or of the only one, as the companion app of `user` says."""
+    action = f"PET_RECOGNITION|{(question or only_question(entry)).doubt.id}|{choice}"
     hass.bus.async_fire(ACTION, {"action": action}, context=Context(user_id=user))
     await settle(hass)
 

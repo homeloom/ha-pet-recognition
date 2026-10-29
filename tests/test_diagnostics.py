@@ -124,8 +124,8 @@ async def test_the_diagnostics_number_the_pets_instead_of_naming_them(
         await store.async_add("a" * 32, Candidate(CROP, tuple(unit(*vector)), model), Origin.UPLOAD)
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
     assert diagnostics["pets"] == [
-        {"pet": "pet_1", "species": "cat", "examples": {"old@1": 1, MODEL: 2}},
-        {"pet": "pet_2", "species": "dog", "examples": {}},
+        {"pet": "pet_1", "species": "cat", "examples": {"old@1": 1, MODEL: 2}, "learned": 0},
+        {"pet": "pet_2", "species": "dog", "examples": {}, "learned": 0},
     ]
     assert "Pet A" not in str(diagnostics)
     assert "a" * 32 not in str(diagnostics)

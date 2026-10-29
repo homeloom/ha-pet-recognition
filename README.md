@@ -224,7 +224,18 @@ A button answers the question:
 
 An answer counts once, for an open question, and only from the user a
 phone asked was registered for in the companion app. A second answer, from
-another phone, changes nothing. Turning answers into examples comes next.
+another phone, changes nothing.
+
+An answer also teaches: when the picture shown, or another picture of the
+question, has a single animal, that animal becomes a learned example of the
+pet, from its embedding or from its crop, which the engine embeds again.
+Learned examples count towards the 200 of a pet, and make room first.
+Correcting a picture again, to another pet, to several or to unknown, takes
+its example back. Each time the examples change, and each time the
+integration loads, the pictures that are still unknown are compared again
+with every example, so one answer can tell who was at other visits and
+settle their questions too. The comparisons run in the background, outside
+Home Assistant's event loop.
 
 **What leaves Home Assistant**: the notifications go through the push relay
 of the companion apps, with the names of the pets and the source, the time,

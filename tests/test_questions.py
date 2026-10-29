@@ -335,9 +335,12 @@ async def test_a_restart_sends_what_was_not_sent(
     await settle(hass)
     asked = only_question(entry)
     assert asked.sent == tuple(phones.ids.values())
-    (first, second) = phones.sent
+    (first, second) = phones.questions()
     assert (first[0], second[0]) == ("Phone 1", "Phone 2")
     assert [action["title"] for action in second[2]["actions"]] == ["Pet b", "Other"]
+    # Then, without Pet C, the examples tell Pet B, which settles the question.
+    assert asked.doubt.state is State.SETTLED
+    assert len(phones.cleared()) == 2
 
 
 async def test_a_phone_that_is_gone_raises_a_repair(

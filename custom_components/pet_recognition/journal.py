@@ -18,7 +18,8 @@ a newer one comes. A picture where no animal is found, such as a garden
 camera's picture of people passing by, is never kept.
 
 A correction relabels pictures with the pets the user named, or with none
-to say they are unknown, and keeps them as a group of their own.
+to say they are unknown, and keeps them as a group of their own. They keep
+their embeddings no more: the examples cannot change them any more.
 
 Embeddings are kept only while a picture is unknown, which is when they can
 still change its pets, and only for the latest unknown pictures of each
@@ -54,7 +55,7 @@ from homeassistant.util.hass_dict import HassKey
 from .const import DOMAIN, PICTURE_LIMIT, QUEUE_LIMIT
 from .core.corrections import Correction
 from .core.doubts import Doubt, Kind, State
-from .core.matching import OTHER_ANIMAL
+from .core.matching import OTHER_ANIMAL, Told
 from .examples import data_directory, decode_vector, encode_vector
 from .files import FILE_ID, delete_files, delete_unknown_files, file_path, write_files
 
@@ -344,14 +345,62 @@ class Journal:
         self._save()
 
     async def async_correct(self, correction: Correction) -> None:
-        """Relabel the pictures of a correction."""
+        """Relabel the pictures of a correction, which need their embeddings no more."""
         for record in self.records:
             if record.id in correction.pictures:
                 record.pets = correction.pets
                 record.corrected = True
                 record.group = correction.group
+                for detection in record.detections:
+                    detection.vector = None
                 self._rows.pop(record.id, None)
         await self._changed()
+
+    def unknown(self) -> list[tuple[Record, list[tuple[tuple[float, ...], str]]]]:
+        """The pictures that the examples may still tell, with the embedding
+        and model of each animal: unknown, not corrected, and that keep their
+        embeddings."""
+        return [
+            (
+                record,
+                [
+                    (detection.vector, detection.model)
+                    for detection in record.detections
+                    if detection.vector is not None
+                ],
+            )
+            for record in self.records
+            if not record.pets and not record.corrected and _vectors(record)
+        ]
+
+    async def async_told(self, told: Mapping[str, Told]) -> None:
+        """Give unknown pictures, by ID, what the examples tell of them now.
+
+        A picture that is no longer unknown, or not as it was, is left as it is.
+        """
+        changed = False
+        for record, _animals in self.unknown():
+            if (now := told.get(record.id)) is None:
+                continue
+            if (
+                now.pets == record.pets
+                and now.resembles == record.resembles
+                and all(
+                    detection.scores == scores
+                    for detection, scores in zip(record.detections, now.scores, strict=True)
+                )
+            ):
+                continue
+            for detection, scores in zip(record.detections, now.scores, strict=True):
+                detection.scores = dict(scores)
+                if now.pets:
+                    detection.vector = None
+            record.pets = now.pets
+            record.resembles = now.resembles
+            self._rows.pop(record.id, None)
+            changed = True
+        if changed:
+            await self._changed()
 
     @callback
     def async_retry(self, pending: Pending) -> None:

@@ -26,6 +26,7 @@ from .engine import EngineClient
 from .examples import ExampleStore, async_get_store, async_remove_data
 from .history import History
 from .journal import Journal, async_get_journal, async_remove_journal
+from .learning import Learner, Rematcher
 from .options import entry_options
 from .pets import Reembedder, async_check_examples, async_delete_pet_issues, pets
 from .phones import async_check_phones, async_delete_phone_issues
@@ -50,6 +51,7 @@ class PetRecognitionData:
     history: History
     counter: VisitCounter
     analyzer: Analyzer
+    learner: Learner
 
 
 type PetRecognitionConfigEntry = ConfigEntry[PetRecognitionData]
@@ -138,10 +140,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: PetRecognitionConfigEntr
     entry.async_on_unload(async_watch_entities(hass, entry))
 
     counter = VisitCounter(hass, journal, history)
-    asker = Asker(hass, entry, journal, history, examples, counter, settings)
+    learner = Learner(coordinator, journal, examples)
+    asker = Asker(hass, entry, journal, history, examples, counter, learner, settings)
+    rematcher = Rematcher(hass, entry, journal, examples, settings, entry_options(entry).match)
     async_check_phones(hass, entry_options(entry).phones)
     entry.runtime_data = PetRecognitionData(
-        client, coordinator, examples, journal, history, counter, analyzer
+        client, coordinator, examples, journal, history, counter, analyzer, learner
     )
     entry.async_on_unload(entry.add_update_listener(_async_reload))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -149,6 +153,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: PetRecognitionConfigEntr
     # Once the event entities listen, so that a visit that ended while Home
     # Assistant was stopped is announced to them.
     entry.async_on_unload(counter.async_start())
+    entry.async_on_unload(rematcher.async_start())
     return True
 
 

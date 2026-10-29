@@ -15,6 +15,14 @@ A question is saved before it is sent, with the phones it is sent to, so a
 restart sends it to the phones still missing. A phone that fails is tried
 again later, longer after each failure, for as long as the question can be
 asked. A question that is settled or expires is removed from the phones.
+
+An answer is the action of a button, `PET_RECOGNITION|<question>|<choice>`,
+which the companion app fires as an event with the user it was registered
+for. Any other action is left to other automations. An answer counts only
+for an open question, once, and from the user of one of the phones asked.
+A pet corrects the pictures of the question (see `core.corrections`), which
+settles it and removes it from every phone. Other closes the question
+without telling who it was, and leaves the visit to review.
 """
 
 from __future__ import annotations
@@ -26,13 +34,14 @@ from datetime import datetime
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
+from .core.corrections import answer
 from .core.doubts import Doubt, Kind, Question, QuestionSettings, State, questions, review
 from .counts import VisitCounter
 from .examples import ExampleStore
@@ -41,7 +50,7 @@ from .history import History
 from .journal import Asked, Journal
 from .options import entry_options
 from .pets import pets
-from .phones import PhoneMissingError, async_clear, async_notify
+from .phones import PhoneMissingError, async_clear, async_notify, phone_users
 from .sources import SourceSettings
 from .views import signed_picture_url
 
@@ -59,6 +68,8 @@ CHOICES = 2
 ACTION = "PET_RECOGNITION"
 OTHER = "other"
 GROUP = "pet_recognition"
+# The event of the companion apps when a button of a notification is pressed.
+EVENT_ACTION = "mobile_app_notification_action"
 
 
 def notification_tag(doubt_id: str) -> str:
@@ -108,13 +119,15 @@ class Asker:
 
     @callback
     def async_start(self) -> CALLBACK_TYPE:
-        """Ask when the visits change, and send what a restart left unsent."""
+        """Ask when the visits change, send what a restart left unsent, and hear answers."""
         stop_listening = self._counter.async_add_listener(self.async_check)
+        stop_answers = self._hass.bus.async_listen(EVENT_ACTION, self._async_action)
         self.async_check()
 
         @callback
         def _async_stop() -> None:
             stop_listening()
+            stop_answers()
             self._cancel()
 
         return _async_stop
@@ -129,6 +142,54 @@ class Asker:
     async def _async_check(self) -> None:
         async with self._lock:
             await self._async_check_now()
+
+    @callback
+    def _async_action(self, event: Event) -> None:
+        """Take an answer, leaving the actions of other notifications alone."""
+        action = event.data.get("action")
+        if not isinstance(action, str) or not action.startswith(f"{ACTION}|"):
+            return
+        self._entry.async_create_background_task(
+            self._hass,
+            self._async_answer(action, event.context.user_id),
+            "pet_recognition take an answer",
+        )
+
+    async def _async_answer(self, action: str, user: str | None) -> None:
+        async with self._lock:
+            await self._async_answer_now(action, user)
+
+    async def _async_answer_now(self, action: str, user: str | None) -> None:
+        _prefix, _, rest = action.partition("|")
+        doubt_id, _, choice = rest.partition("|")
+        asked = next((item for item in self._journal.asked if item.doubt.id == doubt_id), None)
+        if asked is None or not asked.open:
+            # Another entry's, answered already, or closed.
+            _LOGGER.debug("An answer to no open question is ignored")
+            return
+        if user is None or user not in phone_users(self._hass, asked.phones):
+            _LOGGER.warning("An answer from a user whose phones were not asked is ignored")
+            return
+        doubt = asked.doubt
+        if choice == OTHER:
+            doubt.state = State.DISMISSED
+            self._journal.async_closed()
+            await async_clear(self._hass, asked.sent, notification_tag(doubt.id))
+            return
+        if choice not in asked.choices or choice not in pets(self._entry):
+            _LOGGER.warning("An answer with a pet that was not offered is ignored")
+            return
+        correction = answer(
+            doubt,
+            [choice],
+            self._history.visits(doubt.source),
+            self._journal.doubts(doubt.source),
+        )
+        if correction is None:
+            # Told since, which settles the question at the next check.
+            return
+        # The check that follows settles the question, and removes it from the phones.
+        await self._journal.async_correct(correction)
 
     async def _async_check_now(self) -> None:
         self._cancel()

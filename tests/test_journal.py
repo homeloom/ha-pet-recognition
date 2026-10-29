@@ -439,6 +439,8 @@ async def test_unreadable_records_are_ignored(
                 good_record(detections={}),
                 good_record(resembles=7),
                 good_record(status="lost"),
+                good_record(corrected="yes"),
+                good_record(group=3),
                 bad_detection(scores=[]),
                 bad_detection(scores={"pet_a": "high"}),
                 bad_detection(vector="not base64!"),
@@ -452,7 +454,7 @@ async def test_unreadable_records_are_ignored(
     assert [item.id for item in journal.queue] == ["d" * 32]
     assert [item.id for item in journal.records] == ["a" * 32, "e" * 32]
     assert journal.records[1].resembles == "pet_a"
-    assert caplog.text.count("cannot be read, and is ignored") == 2 + 5 + 9
+    assert caplog.text.count("cannot be read, and is ignored") == 2 + 5 + 11
 
 
 @pytest.mark.parametrize("data", [["a list"], {"seen": {}, "queue": "none", "pictures": 7}])

@@ -27,6 +27,8 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 MOBILE_APP = "mobile_app"
+# The user of a companion app's registration, in its config entry.
+USER_ID = "user_id"
 ISSUE_NOTIFY_DEVICE_MISSING = "notify_device_missing"
 # The message that makes the companion apps remove a notification by its tag.
 CLEAR_NOTIFICATION = "clear_notification"
@@ -70,6 +72,21 @@ async def _async_send(hass: HomeAssistant, phone: str, message: str, data: dict[
         hass, MOBILE_APP, DeviceAutomationType.ACTION
     )
     await platform.async_call_action_from_config(hass, config, {}, None)
+
+
+@callback
+def phone_users(hass: HomeAssistant, phones: Iterable[str]) -> set[str]:
+    """The users the companion app of each phone was registered for."""
+    registry = dr.async_get(hass)
+    users: set[str] = set()
+    for phone in phones:
+        if (device := registry.async_get(phone)) is None:
+            continue
+        for entry_id in device.config_entries:
+            entry = hass.config_entries.async_get_entry(entry_id)
+            if entry is not None and entry.domain == MOBILE_APP and entry.data.get(USER_ID):
+                users.add(entry.data[USER_ID])
+    return users
 
 
 @callback

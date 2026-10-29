@@ -1,5 +1,5 @@
-"""Sensors: what each pet and each source last saw, the visits of the day, and the
-engine's queue."""
+"""Sensors: what each pet and each source last saw, the visits of the day and
+those to review, and the engine's queue."""
 
 from __future__ import annotations
 
@@ -66,6 +66,7 @@ async def async_setup_entry(
             [
                 LastVisitor(entry.entry_id, subentry, data, titles),
                 VisitsToday(entry.entry_id, subentry, data.counter),
+                VisitsToReview(entry.entry_id, subentry, data),
                 *(
                     PetVisitsToday(entry.entry_id, subentry, data.counter, pets(entry)[key])
                     for key in expected.values()
@@ -232,6 +233,41 @@ class LastVisitor(JournalEntity, SensorEntity):
         if (visit := self._visit()) is None:
             return None
         return {"pets": self._pets(visit)}
+
+
+class VisitsToReview(SensorEntity):
+    """The visits of a source that ended unsure, among the pictures kept."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_translation_key = "visits_to_review"
+
+    def __init__(self, entry_id: str, subentry: ConfigSubentry, data: PetRecognitionData) -> None:
+        self._source = subentry.subentry_id
+        self._history = data.history
+        self._counter = data.counter
+        self._attr_unique_id = f"{entry_id}_{subentry.subentry_id}_visits_to_review"
+        self._attr_device_info = subentry_device(entry_id, subentry)
+
+    async def async_added_to_hass(self) -> None:
+        """Follow the visits that end, and the corrections."""
+        self.async_on_remove(self._counter.async_add_listener(self.async_write_ha_state))
+
+    def _visits(self) -> list[Visit]:
+        ended = self._history.ended(self._source, dt_util.utcnow().timestamp())
+        return [visit for visit in ended if visit.unsure]
+
+    @property
+    def native_value(self) -> int:
+        """How many visits are left unsure."""
+        return len(self._visits())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """The latest of them, to correct with the `assign_visit` action."""
+        visits = self._visits()
+        return {"latest_visit_id": visits[-1].id if visits else None}
 
 
 class DayCountEntity(SensorEntity):

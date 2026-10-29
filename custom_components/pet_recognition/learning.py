@@ -5,7 +5,8 @@ When it names a single pet, the animal it chose becomes a learned example
 of that pet: its embedding, if the journal still keeps it, else its crop
 embedded again by the engine. An example learned before from the same
 pictures goes first, since their label changed, so that correcting a
-picture again, to unknown or to several pets, takes its example back.
+picture again, to unknown or to several pets, takes its example back. A
+visit announced as ended is announced again once corrected.
 
 Each time the examples change, the unknown pictures are told again, so that
 an example learned from one visit can tell who was at the others, and
@@ -28,6 +29,7 @@ from .const import EXAMPLE_LIMIT
 from .coordinator import EngineCoordinator
 from .core.corrections import Correction
 from .core.matching import Example, Gallery, MatchSettings, Told, Vector, tell
+from .counts import VisitCounter
 from .engine import EngineError
 from .examples import Candidate, ExampleStore, Learned, Origin
 from .journal import Journal
@@ -40,11 +42,16 @@ class Learner:
     """Applies the corrections of one entry, and learns from them."""
 
     def __init__(
-        self, coordinator: EngineCoordinator, journal: Journal, examples: ExampleStore
+        self,
+        coordinator: EngineCoordinator,
+        journal: Journal,
+        examples: ExampleStore,
+        counter: VisitCounter,
     ) -> None:
         self._coordinator = coordinator
         self._journal = journal
         self._examples = examples
+        self._counter = counter
         # One correction at a time, so that each learns from what the last left.
         self._lock = asyncio.Lock()
 
@@ -53,7 +60,14 @@ class Learner:
         async with self._lock:
             # Before the journal drops the embeddings of the pictures it relabels.
             learned = await self._learned(correction, origin)
+            sources = {
+                record.source
+                for record in self._journal.records
+                if record.id in correction.pictures
+            }
             await self._journal.async_correct(correction)
+            for source in sources:
+                self._counter.async_corrected(source, correction.pictures)
             await self._examples.async_relearn(correction.pictures, learned)
 
     async def _learned(self, correction: Correction, origin: Origin) -> Learned | None:

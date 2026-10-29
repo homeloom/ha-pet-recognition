@@ -5,27 +5,51 @@ local day it started. Counts are computed again from the history each time,
 so a restart rebuilds them and a correction never leaves one to repair.
 
 Each visit that ends is announced once, oldest first, to the listeners of
-its source. The journal remembers the start of the latest visit announced of
-each source, so that a visit that ended while Home Assistant was stopped is
-announced once when it starts again. A source seen for the first time
+its source, and again each time a correction changes it. The journal
+remembers the start of the latest visit announced of each source, so that a
+visit that ended while Home Assistant was stopped is announced once when it
+starts again. A source seen for the first time
 announces none of the visits it already had.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from datetime import date, datetime, timedelta
+from collections.abc import Callable, Collection
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.event import async_call_later, async_track_time_change
 from homeassistant.util import dt as dt_util
 
+from .core.matching import OTHER_ANIMAL
 from .core.visits import DayCount, Visit, count
 from .history import History
 from .journal import Journal
 
 # Seconds after the end of a visit before it is checked, so that it has ended.
 _MARGIN = 1
+
+# What is announced of a visit.
+VISIT_ENDED = "visit_ended"
+VISIT_CORRECTED = "visit_corrected"
+
+
+def visit_data(visit: Visit, titles: dict[str, str]) -> dict[str, Any]:
+    """What is said of a visit: its pets by name, whether it is unsure, its times."""
+    return {
+        "visit_id": visit.id,
+        "pets": sorted(titles[pet] for pet in visit.pets if pet in titles),
+        "other_animal": OTHER_ANIMAL in visit.pets,
+        "unsure": visit.unsure,
+        "start": _time(visit.start),
+        "end": _time(visit.end),
+        "pictures": len(visit.pictures),
+    }
+
+
+def _time(timestamp: float) -> str:
+    return datetime.fromtimestamp(timestamp, UTC).isoformat()
 
 
 class VisitCounter:
@@ -36,7 +60,7 @@ class VisitCounter:
         self._journal = journal
         self._history = history
         self._listeners: list[Callable[[], None]] = []
-        self._announcers: dict[str, list[Callable[[Visit], None]]] = {}
+        self._announcers: dict[str, list[Callable[[str, Visit], None]]] = {}
         self._cancel_check: CALLBACK_TYPE | None = None
 
     @callback
@@ -71,8 +95,11 @@ class VisitCounter:
         return lambda: self._listeners.remove(listener)
 
     @callback
-    def async_add_announcer(self, source: str, announce: Callable[[Visit], None]) -> CALLBACK_TYPE:
-        """Call `announce` with each visit of `source` that ends."""
+    def async_add_announcer(
+        self, source: str, announce: Callable[[str, Visit], None]
+    ) -> CALLBACK_TYPE:
+        """Call `announce` with each visit of `source` that ends, or is corrected
+        once it ended, and which of the two."""
         announcers = self._announcers.setdefault(source, [])
         announcers.append(announce)
         return lambda: announcers.remove(announce)
@@ -101,8 +128,7 @@ class VisitCounter:
                 if visit.start <= last:
                     continue
                 self._journal.async_announce(source, visit.start)
-                for announce in list(self._announcers.get(source, ())):
-                    announce(visit)
+                self._announce(VISIT_ENDED, visit)
         self._notify()
         ends = [
             end
@@ -113,6 +139,20 @@ class VisitCounter:
             self._cancel_check = async_call_later(
                 self._hass, min(ends) - now + _MARGIN, self._async_check
             )
+
+    @callback
+    def async_corrected(self, source: str, pictures: Collection[str]) -> None:
+        """Announce the visits of `source` announced already that hold `pictures`,
+        once corrected. The others are announced when they end."""
+        last = self._journal.announced.get(source, 0)
+        for visit in self._history.visits(source):
+            if visit.start <= last and any(picture.id in pictures for picture in visit.pictures):
+                self._announce(VISIT_CORRECTED, visit)
+
+    @callback
+    def _announce(self, kind: str, visit: Visit) -> None:
+        for announce in list(self._announcers.get(visit.source, ())):
+            announce(kind, visit)
 
     @callback
     def _async_new_day(self, _now: datetime) -> None:

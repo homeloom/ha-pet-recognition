@@ -273,7 +273,8 @@
           "event_type": {
             "name": "Type d'événement",
             "state": {
-              "visit_ended": "Visite terminée"
+              "visit_ended": "Visite terminée",
+              "visit_corrected": "Visite corrigée"
             }
           },
           "visit_id": {
@@ -303,6 +304,15 @@
     "image": {
       "last_picture": {
         "name": "Dernière photo"
+      }
+    },
+    "select": {
+      "correct_last_visit": {
+        "name": "Corriger la dernière visite",
+        "state": {
+          "unknown_animal": "Animal inconnu",
+          "other_animal": "Autre animal"
+        }
       }
     },
     "sensor": {
@@ -359,6 +369,14 @@
             "name": "Hier"
           }
         }
+      },
+      "visits_to_review": {
+        "name": "Visites à revoir",
+        "state_attributes": {
+          "latest_visit_id": {
+            "name": "Dernière visite"
+          }
+        }
       }
     }
   },
@@ -380,6 +398,18 @@
     },
     "question_other": {
       "message": "Autre"
+    },
+    "no_visit": {
+      "message": "Cette source n'a aucune visite à corriger."
+    },
+    "unknown_visit": {
+      "message": "Aucune visite {visit_id} n'est gardée aux sources de Pet Recognition."
+    },
+    "unknown_source": {
+      "message": "{entity_id} n'est l'entité d'aucune source de Pet Recognition."
+    },
+    "unknown_pet": {
+      "message": "L'appareil {device_id} n'est pas un animal de cette entrée Pet Recognition."
     }
   },
   "issues": {
@@ -484,6 +514,30 @@
         "litter_box": "Litière",
         "pet_door": "Porte pour animaux",
         "other": "Autre"
+      }
+    }
+  },
+  "services": {
+    "assign_visit": {
+      "name": "Attribuer une visite",
+      "description": "Dit quels animaux étaient à une visite, ce qui corrige toutes ses photos et apprend l'animal d'un seul animal nommé.",
+      "fields": {
+        "visit_id": {
+          "name": "Visite",
+          "description": "L'identifiant de la visite, tel que ses événements et les visites à revoir le donnent."
+        },
+        "source": {
+          "name": "Source",
+          "description": "Une entité d'une source, pour sa dernière visite, ou pour n'y chercher que la visite."
+        },
+        "pets": {
+          "name": "Animaux",
+          "description": "Les animaux qui étaient là. Aucun, sans l'autre animal, dit qu'elle est inconnue."
+        },
+        "other_animal": {
+          "name": "Autre animal",
+          "description": "Un animal qui n'est aucun des animaux déclarés était là aussi."
+        }
       }
     }
   }

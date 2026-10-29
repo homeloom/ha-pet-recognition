@@ -1,0 +1,19 @@
+{
+  "entity": {
+    "select": {
+      "correct_last_visit": {
+        "default": "mdi:paw"
+      }
+    },
+    "sensor": {
+      "visits_to_review": {
+        "default": "mdi:help-circle-outline"
+      }
+    }
+  },
+  "services": {
+    "assign_visit": {
+      "service": "mdi:paw"
+    }
+  }
+}

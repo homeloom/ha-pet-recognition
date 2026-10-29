@@ -44,6 +44,7 @@ from homeassistant.helpers.event import async_call_later, async_track_state_chan
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CONF_ASK_WHEN_UNSURE,
     CONF_ENTITIES,
     CONF_EVERY_PICTURE,
     CONF_FRAMES,
@@ -93,6 +94,8 @@ class SourceSettings:
     trigger: str | None
     frames: int
     interval: float
+    # Whether to ask on the phones who it was, when unsure.
+    ask_when_unsure: bool = True
 
     @property
     def images(self) -> tuple[str, ...]:
@@ -143,6 +146,8 @@ def source_settings(entry: ConfigEntry, subentry: ConfigSubentry) -> SourceSetti
         trigger=data[CONF_TRIGGER],
         frames=data[CONF_FRAMES],
         interval=data[CONF_INTERVAL],
+        # Sources added before the questions ask.
+        ask_when_unsure=data.get(CONF_ASK_WHEN_UNSURE, True),
     )
 
 

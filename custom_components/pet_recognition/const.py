@@ -37,6 +37,8 @@ CONF_CAMERA: Final = "camera"
 CONF_TRIGGER: Final = "trigger"
 CONF_FRAMES: Final = "frames"
 CONF_INTERVAL: Final = "interval"
+# Whether a source asks on the phones who it was, when unsure.
+CONF_ASK_WHEN_UNSURE: Final = "ask_when_unsure"
 # What a source is, for its names and defaults.
 KINDS: Final = ("feeder", "water", "litter_box", "pet_door", "other")
 # Sources that take pictures only when a pet is there.
@@ -65,6 +67,10 @@ DEFAULT_MIN_AREA: Final = 1
 DEFAULT_RETENTION: Final = 7
 MIN_RETENTION: Final = 2
 MAX_RETENTION: Final = 30
+# The phones asked who was at a source, and whether to ask them while a pet
+# has no examples yet.
+CONF_PHONES: Final = "phones"
+CONF_ASK_WHILE_LEARNING: Final = "ask_while_learning"
 # The most pictures waiting for the engine, and kept per source.
 QUEUE_LIMIT: Final = 100
 PICTURE_LIMIT: Final = 2000

@@ -11,12 +11,14 @@ from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.pet_recognition.const import PICTURE_LIMIT, QUEUE_LIMIT
+from custom_components.pet_recognition.core.doubts import Doubt, Kind, State
 from custom_components.pet_recognition.core.matching import OTHER_ANIMAL
 from custom_components.pet_recognition.examples import encode_vector, stored_vector
 from custom_components.pet_recognition.files import new_id
 from custom_components.pet_recognition.journal import (
     SAVE_DELAY,
     VECTOR_LIMIT,
+    Asked,
     Detection,
     Journal,
     Pending,
@@ -510,3 +512,75 @@ async def test_the_visits_announced_are_kept_across_restarts(
     hass_storage[KEY] = stored({"announced": ["source"]})
     assert (await loaded(hass)).announced == {}
     assert caplog.text.count("cannot be read, and") == 3
+
+
+def question(shown: str, *pictures: str) -> Asked:
+    return Asked(
+        doubt=Doubt(new_id(), "source", (shown, *pictures), shown, Kind.UNSURE, 50),
+        taken=40,
+        crop=new_id(),
+        choices=("pet_a", "pet_b"),
+        phones=("phone_1", "phone_2"),
+    )
+
+
+async def test_the_questions_are_saved_before_they_are_sent(
+    hass: HomeAssistant,
+    hass_storage: dict[str, Any],
+    freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    journal = await loaded(hass)
+    first, second = pending(taken=10), pending(taken=20)
+    for item in (first, second):
+        await analyzed(journal, item, record(item))
+    asked = question(first.id, second.id)
+    await journal.async_ask(asked)
+    # At once.
+    (row,) = hass_storage[KEY]["data"]["questions"]
+    assert row == {
+        "id": asked.doubt.id,
+        "source": "source",
+        "pictures": [first.id, second.id],
+        "shown": first.id,
+        "kind": "unsure",
+        "asked": 50,
+        "state": "open",
+        "taken": 40,
+        "crop": asked.crop,
+        "choices": ["pet_a", "pet_b"],
+        "phones": ["phone_1", "phone_2"],
+        "sent": [],
+    }
+    journal.async_sent(asked, "phone_1")
+    await saved(hass, freezer)
+    assert (await loaded(hass)).asked == [asked]
+    assert journal.doubts("source") == [asked.doubt]
+    assert journal.doubts("other") == []
+    assert journal.question(asked.doubt) is asked
+
+    # Closed, it stays while one of its pictures is kept.
+    asked.doubt.state = State.EXPIRED
+    journal.async_closed()
+    await journal.async_purge(15)
+    assert journal.asked == [asked]
+    await journal.async_keep({}, set())
+    assert journal.asked == []
+
+    good = {**row, "id": "d" * 32, "crop": None}
+    hass_storage[KEY] = stored(
+        {
+            "questions": [
+                good,
+                {**good, "id": "x"},
+                {**good, "pictures": "all"},
+                {**good, "kind": "curious"},
+                {**good, "state": "lost"},
+                {**good, "phones": [""]},
+                {**good, "taken": None},
+            ]
+        }
+    )
+    (kept,) = (await loaded(hass)).asked
+    assert (kept.doubt.id, kept.crop, kept.open) == ("d" * 32, None, True)
+    assert caplog.text.count("cannot be read, and is ignored") == 6

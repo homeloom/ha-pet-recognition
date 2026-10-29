@@ -93,7 +93,8 @@ async def test_a_source_of_images_is_added(
     assert (result["type"], result["step_id"]) == (FlowResultType.FORM, "details")
     assert result["description_placeholders"] == {"source": "Feeder"}
     # Without a camera, there is nothing to trigger.
-    assert fields(result) == ["pets", "advanced"]
+    assert fields(result) == ["pets", "ask_when_unsure", "advanced"]
+    assert suggested(result, "ask_when_unsure") is True
     assert advanced(result) == ADVANCED
     pets = result["data_schema"].schema["pets"].config["options"]
     assert pets == [{"value": "a" * 32, "label": "Pet A"}, {"value": "b" * 32, "label": "Pet B"}]
@@ -105,12 +106,15 @@ async def test_a_source_of_images_is_added(
         },
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
+    # The entry loads again with the source.
+    await hass.async_block_till_done()
     (subentry,) = (item for item in entry.subentries.values() if item.subentry_type == "source")
     assert subentry.title == "Feeder"
     assert dict(subentry.data) == {
         "kind": "feeder",
         "entities": ["image.feeder", "image.bowl"],
         "pets": ["a" * 32],
+        "ask_when_unsure": True,
         "gap": 10,
         "late": 0,
         "every_picture_shows_a_pet": False,
@@ -125,7 +129,7 @@ async def test_a_source_with_a_camera_needs_a_trigger(
 ) -> None:
     entry = await set_up(hass, aioclient_mock)
     result = await start(hass, entry, "feeder", "camera.garden", "image.feeder")
-    assert fields(result) == ["pets", "camera", "advanced"]
+    assert fields(result) == ["pets", "ask_when_unsure", "camera", "advanced"]
     assert fields(result, "camera") == ["trigger", "frames", "interval"]
     assert not collapsed(result, "camera")
     assert (suggested(result, "camera", "frames"), suggested(result, "camera", "interval")) == (
@@ -141,6 +145,8 @@ async def test_a_source_with_a_camera_needs_a_trigger(
     user_input["camera"] |= {"trigger": "event.doorbell"}
     result = await hass.config_entries.subentries.async_configure(result["flow_id"], user_input)
     assert result["type"] is FlowResultType.CREATE_ENTRY
+    # The entry loads again with the source.
+    await hass.async_block_till_done()
     (subentry,) = (item for item in entry.subentries.values() if item.subentry_type == "source")
     assert subentry.data["entities"] == ["camera.garden", "image.feeder"]
     assert (subentry.data["trigger"], subentry.data["frames"], subentry.data["interval"]) == (
@@ -202,7 +208,15 @@ async def test_a_source_is_changed(
     )
     result = await entry.start_subentry_reconfigure_flow(hass, subentry_id)
     assert (result["type"], result["step_id"]) == (FlowResultType.FORM, "reconfigure")
-    assert fields(result) == ["name", "kind", "entities", "pets", "camera", "advanced"]
+    assert fields(result) == [
+        "name",
+        "kind",
+        "entities",
+        "pets",
+        "ask_when_unsure",
+        "camera",
+        "advanced",
+    ]
     # A source without a camera has its camera settings out of the way.
     assert collapsed(result, "camera")
     assert suggested(result, "name") == "Feeder"
@@ -210,12 +224,15 @@ async def test_a_source_is_changed(
     assert suggested(result, "camera", "trigger") is None
     # A pet that is gone is not shown.
     assert suggested(result, "pets") == []
+    # A source added before the questions asks.
+    assert suggested(result, "ask_when_unsure") is True
 
     changes: dict[str, Any] = {
         "name": "",
         "kind": "water",
         "entities": ["image.bowl"],
         "pets": [],
+        "ask_when_unsure": False,
         "camera": {"frames": 6, "interval": 10},
         "advanced": ADVANCED,
     }
@@ -231,6 +248,7 @@ async def test_a_source_is_changed(
     subentry = entry.subentries[subentry_id]
     assert subentry.title == "Fountain"
     assert subentry.data["kind"] == "water"
+    assert subentry.data["ask_when_unsure"] is False
     assert subentry.data["entities"] == ["image.feeder", "camera.fountain"]
     assert (subentry.data["trigger"], subentry.data["frames"]) == (
         "binary_sensor.fountain_motion",

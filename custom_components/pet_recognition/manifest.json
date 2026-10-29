@@ -3,7 +3,8 @@
   "name": "Pet Recognition",
   "after_dependencies": [
     "camera",
-    "image"
+    "image",
+    "mobile_app"
   ],
   "codeowners": [
     "@Vavouts"

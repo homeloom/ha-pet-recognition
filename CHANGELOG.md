@@ -21,6 +21,11 @@ All notable changes to this project are documented here. The format follows
   fails, removed from the phones once they expire or their source is
   removed, and counted in the diagnostics.
 - A repair when a phone of the options is no longer a companion app device.
+- Answers to the questions: a pet corrects the pictures of the question,
+  which updates the visit and its counts, and removes the question from
+  every phone; Other closes it and leaves the visit to review. Only an
+  open question counts, once, from the user of a phone asked. Corrections
+  are kept in the journal.
 
 ## [0.1.0] - 2026-10-28
 

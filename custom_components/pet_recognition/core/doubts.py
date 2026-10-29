@@ -41,6 +41,8 @@ class State(StrEnum):
     OPEN = "open"
     SETTLED = "settled"
     EXPIRED = "expired"
+    # Answered with none of the pets shown, so the visit is left to review.
+    DISMISSED = "dismissed"
 
 
 @dataclass(frozen=True)

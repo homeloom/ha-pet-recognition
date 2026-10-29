@@ -24,6 +24,8 @@ def picture(record: Record) -> Picture:
         detections=len(record.detections),
         pets=record.pets,
         resembles=record.resembles,
+        corrected=record.corrected,
+        group=record.group,
     )
 
 

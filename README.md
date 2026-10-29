@@ -5,8 +5,8 @@ visits, and learn from your answers. Everything runs locally.
 
 > **Status: first release.** Pets are recognized at their sources, and
 > their visits counted per day. Questions on the phones when it is unsure
-> are being added: they are sent, and their answers, and learning from
-> them, come next.
+> are being added: they are sent and answered, and learning from the
+> answers comes next.
 
 ## Setup
 
@@ -213,8 +213,18 @@ the companion app raises a repair: choose the phones again in the options.
 Removing a source, or the integration, removes its open questions from the
 phones.
 
-Answering is not handled yet: the next release corrects the visit with the
-answer, and turns it into an example.
+A button answers the question:
+
+- **A pet** corrects the pictures of the question to that pet, so the visit
+  and the counts show it, settles the question and removes it from every
+  phone. A picture recognized on its own since the question was asked
+  keeps its pet.
+- **Other** closes the question without telling who it was, removes it
+  from the phones, and leaves the visit to review.
+
+An answer counts once, for an open question, and only from the user a
+phone asked was registered for in the companion app. A second answer, from
+another phone, changes nothing. Turning answers into examples comes next.
 
 **What leaves Home Assistant**: the notifications go through the push relay
 of the companion apps, with the names of the pets and the source, the time,

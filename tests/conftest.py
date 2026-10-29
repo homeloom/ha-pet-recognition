@@ -9,6 +9,7 @@ from homeassistant.components.image import Image
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
+from .asking import Phones, register_phones
 from .watching import Shown
 
 
@@ -36,3 +37,9 @@ def shown() -> Iterator[Shown]:
 
     with patch("custom_components.pet_recognition.sources.async_get_image", get):
         yield pictures
+
+
+@pytest.fixture
+def phones(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> Phones:
+    """Two phones of the companion app, and what the integration sends them."""
+    return register_phones(hass, monkeypatch)

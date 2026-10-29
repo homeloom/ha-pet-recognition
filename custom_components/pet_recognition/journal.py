@@ -17,6 +17,9 @@ source where an animal was found, which its last picture entity shows until
 a newer one comes. A picture where no animal is found, such as a garden
 camera's picture of people passing by, is never kept.
 
+A correction relabels pictures with the pets the user named, or with none
+to say they are unknown, and keeps them as a group of their own.
+
 Embeddings are kept only while a picture is unknown, which is when they can
 still change its pets, and only for the latest unknown pictures of each
 source. The pictures of a source are limited in number and age, so the
@@ -49,6 +52,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util.hass_dict import HassKey
 
 from .const import DOMAIN, PICTURE_LIMIT, QUEUE_LIMIT
+from .core.corrections import Correction
 from .core.doubts import Doubt, Kind, State
 from .core.matching import OTHER_ANIMAL
 from .examples import data_directory, decode_vector, encode_vector
@@ -128,6 +132,10 @@ class Record:
     detections: list[Detection] = field(default_factory=list)
     pets: tuple[str, ...] = ()
     resembles: str | None = None
+    # Corrected to `pets`, or to unknown when it has none, with the pictures
+    # of its group.
+    corrected: bool = False
+    group: str = ""
 
 
 @dataclass
@@ -334,6 +342,16 @@ class Journal:
         """Save the questions that were closed, and forget those without pictures."""
         self._forget_questions()
         self._save()
+
+    async def async_correct(self, correction: Correction) -> None:
+        """Relabel the pictures of a correction."""
+        for record in self.records:
+            if record.id in correction.pictures:
+                record.pets = correction.pets
+                record.corrected = True
+                record.group = correction.group
+                self._rows.pop(record.id, None)
+        await self._changed()
 
     @callback
     def async_retry(self, pending: Pending) -> None:
@@ -544,6 +562,8 @@ def _record_row(record: Record) -> dict[str, Any]:
         "status": record.status,
         "pets": list(record.pets),
         "resembles": record.resembles,
+        "corrected": record.corrected,
+        "group": record.group,
         "detections": [
             {
                 "species": detection.species,
@@ -675,6 +695,10 @@ def _record(value: Mapping[str, Any]) -> Record:
     pets, resembles, detections = value["pets"], value["resembles"], value["detections"]
     if not isinstance(pets, list) or not isinstance(detections, list):
         raise ValueError("the pets and animals of a picture are lists")
+    # Journals from before corrections have neither.
+    corrected, group = value.get("corrected", False), value.get("group", "")
+    if not isinstance(corrected, bool) or not isinstance(group, str):
+        raise ValueError("a correction cannot be read")
     return Record(
         id=_id(value["id"]),
         source=_text(value["source"]),
@@ -685,6 +709,8 @@ def _record(value: Mapping[str, Any]) -> Record:
         detections=[_detection(item) for item in detections],
         pets=tuple(_text(pet) for pet in pets),
         resembles=None if resembles is None else _text(resembles),
+        corrected=corrected,
+        group=group,
     )
 
 

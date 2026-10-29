@@ -323,13 +323,19 @@ async def test_unreadable_stored_examples_are_ignored(
                 record(id="e" * 32, added="yesterday"),
                 record(id="f" * 32, added=float("nan")),
                 record(id="0" * 32, origin="unknown"),
+                # Only learned examples come from a picture, named by its ID.
+                record(id="1" * 32, picture="2" * 32),
+                record(id="3" * 32, origin="answer", picture="../x"),
+                record(id="4" * 32, origin="correction", picture="5" * 32),
                 "not a record",
             ]
         }
     )
     store = await loaded(hass)
-    assert [example.id for example in store.gallery] == ["a" * 32]
-    assert caplog.text.count("cannot be read") == 9
+    assert [example.id for example in store.gallery] == ["a" * 32, "4" * 32]
+    assert store.picture("4" * 32) == "5" * 32
+    assert store.picture("a" * 32) is None
+    assert caplog.text.count("cannot be read") == 11
     assert "there twice" in caplog.text
 
 

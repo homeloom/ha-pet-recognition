@@ -285,3 +285,31 @@ def _ranked(scores: Mapping[str, float], expected: Sequence[str]) -> list[str]:
     """The expected pets and the other animal that have a score, best first."""
     candidates = [pet for pet in dict.fromkeys((*expected, OTHER_ANIMAL)) if pet in scores]
     return sorted(candidates, key=lambda pet: scores[pet], reverse=True)
+
+
+@dataclass(frozen=True)
+class Told:
+    """What the examples tell of the animals of a picture.
+
+    `scores`: the scores of each animal, in order. `pets`: the pets the
+    picture shows, sorted, when every animal is decided, else none.
+    `resembles`: the closest candidate of its animal, when it has one.
+    """
+
+    scores: tuple[dict[str, float], ...]
+    pets: tuple[str, ...]
+    resembles: str | None
+
+
+def tell(
+    animals: Sequence[tuple[Vector, str]],
+    gallery: Gallery,
+    expected: Sequence[str],
+    settings: MatchSettings,
+) -> Told:
+    """What `gallery` tells of `animals`, each an embedding and its model."""
+    scores = tuple(Nearest.compute(vector, model, gallery).scores() for vector, model in animals)
+    decided = [decide(each, expected, settings) for each in scores]
+    pets = tuple(sorted({pet for pet in decided if pet})) if decided and all(decided) else ()
+    closest = resembles(scores[0], expected) if len(scores) == 1 else None
+    return Told(scores, pets, closest)

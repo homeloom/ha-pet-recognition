@@ -21,7 +21,8 @@ which the companion app fires as an event with the user it was registered
 for. Any other action is left to other automations. An answer counts only
 for an open question, once, and from the user of one of the phones asked.
 A pet corrects the pictures of the question (see `core.corrections`), which
-settles it and removes it from every phone. Other closes the question
+settles it and removes it from every phone, and teaches an example of that
+pet (see `learning`). Other closes the question
 without telling who it was, and leaves the visit to review.
 """
 
@@ -44,10 +45,11 @@ from .const import DOMAIN
 from .core.corrections import answer
 from .core.doubts import Doubt, Kind, Question, QuestionSettings, State, questions, review
 from .counts import VisitCounter
-from .examples import ExampleStore
+from .examples import ExampleStore, Origin
 from .files import new_id
 from .history import History
 from .journal import Asked, Journal
+from .learning import Learner
 from .options import entry_options
 from .pets import pets
 from .phones import PhoneMissingError, async_clear, async_notify, phone_users
@@ -100,6 +102,7 @@ class Asker:
         history: History,
         examples: ExampleStore,
         counter: VisitCounter,
+        learner: Learner,
         settings: Mapping[str, SourceSettings],
     ) -> None:
         self._hass = hass
@@ -108,6 +111,7 @@ class Asker:
         self._history = history
         self._examples = examples
         self._counter = counter
+        self._learner = learner
         self._settings = dict(settings)
         # One check at a time, so that a question is asked and sent once.
         self._lock = asyncio.Lock()
@@ -189,7 +193,7 @@ class Asker:
             # Told since, which settles the question at the next check.
             return
         # The check that follows settles the question, and removes it from the phones.
-        await self._journal.async_correct(correction)
+        await self._learner.async_correct(correction, Origin.ANSWER)
 
     async def _async_check_now(self) -> None:
         self._cancel()

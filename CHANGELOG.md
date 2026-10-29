@@ -26,6 +26,13 @@ All notable changes to this project are documented here. The format follows
   every phone; Other closes it and leaves the visit to review. Only an
   open question counts, once, from the user of a phone asked. Corrections
   are kept in the journal.
+- Learning from the answers: a pet named for a single animal makes it a
+  learned example of that pet, from the embedding the journal kept or from
+  its crop embedded again. Correcting the same picture again takes the
+  example back. Learned examples are counted in the diagnostics.
+- Unknown pictures are told again each time the examples change, and when
+  the entry loads, so that an answer can tell who was at other visits and
+  settle their questions. The comparisons run outside the event loop.
 
 ## [0.1.0] - 2026-10-28
 

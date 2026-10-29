@@ -9,6 +9,9 @@ store that names it, and deleted after, so the store never names a missing
 file; files the store does not name, left by a crash, are deleted when the
 store loads.
 
+An example learned from a correction remembers the picture of the journal
+it comes from, so that correcting that picture again takes it back.
+
 There is one store per entry, loaded once and kept across reloads: a flow
 that started before a reload may still add examples, and two stores of the
 same file would save over each other.
@@ -22,7 +25,7 @@ import logging
 import math
 import shutil
 import struct
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
@@ -68,6 +71,16 @@ class Candidate:
     crop: bytes
     vector: tuple[float, ...]
     model: str
+
+
+@dataclass(frozen=True)
+class Learned:
+    """A candidate learned from a correction of the picture `picture`."""
+
+    pet: str
+    candidate: Candidate
+    origin: Origin
+    picture: str
 
 
 def data_directory(hass: HomeAssistant, entry_id: str) -> Path:
@@ -120,6 +133,8 @@ class ExampleStore:
         self.directory = data_directory(hass, entry_id) / "examples"
         self.gallery = Gallery(limit=EXAMPLE_LIMIT)
         self._origins: dict[str, Origin] = {}
+        # The picture each learned example comes from, if known.
+        self._pictures: dict[str, str] = {}
         self._listeners: list[Callable[[], None]] = []
         self._lock = asyncio.Lock()
         # The keys of pets being created, whose examples are kept.
@@ -134,7 +149,7 @@ class ExampleStore:
         examples: dict[str, Example] = {}
         for record in records or []:
             try:
-                example, origin = _parse(record)
+                example, origin, picture = _parse(record)
             except (KeyError, TypeError, ValueError) as err:
                 _LOGGER.warning("A stored example cannot be read, and is ignored: %s", err)
                 continue
@@ -143,6 +158,8 @@ class ExampleStore:
                 continue
             examples[example.id] = example
             self._origins[example.id] = origin
+            if picture is not None:
+                self._pictures[example.id] = picture
         # The gallery checked them when they were added.
         self.gallery.restore(examples.values())
         await self._hass.async_add_executor_job(
@@ -155,6 +172,10 @@ class ExampleStore:
     def origin(self, example_id: str) -> Origin:
         """Where the example comes from."""
         return self._origins[example_id]
+
+    def picture(self, example_id: str) -> str | None:
+        """The picture a learned example comes from, if known."""
+        return self._pictures.get(example_id)
 
     @callback
     def async_add_listener(self, listener: Callable[[], None]) -> CALLBACK_TYPE:
@@ -218,6 +239,44 @@ class ExampleStore:
                 )
         return outcomes
 
+    async def async_relearn(
+        self, pictures: Collection[str], learned: Learned | None = None
+    ) -> Added | None:
+        """Forget the examples learned from `pictures`, then learn `learned`, if any.
+
+        Says what became of `learned`. Saves once, and only if anything changed.
+        """
+        async with self._lock:
+            removed = [
+                example
+                for example_id, picture in list(self._pictures.items())
+                if picture in pictures and (example := self.gallery.remove(example_id))
+            ]
+            outcome = None
+            if learned is not None:
+                example = Example(
+                    id=new_id(),
+                    pet=learned.pet,
+                    vector=stored_vector(learned.candidate.vector),
+                    model=learned.candidate.model,
+                    added=dt_util.utcnow().timestamp(),
+                )
+                await self._hass.async_add_executor_job(
+                    write_files,
+                    self.directory,
+                    [(self.crop_path(example.id), learned.candidate.crop)],
+                )
+                outcome, made_room = self.gallery.add(example)
+                if outcome is Added.ADDED:
+                    self._origins[example.id] = learned.origin
+                    self._pictures[example.id] = learned.picture
+                    removed.extend(made_room)
+                else:
+                    await self._hass.async_add_executor_job(self._delete_crops, [example.id])
+            if removed or outcome is Added.ADDED:
+                await self._save_and_delete(removed)
+        return outcome
+
     async def async_replace(self, example_id: str, vector: Iterable[float], model: str) -> None:
         """Give an example the embedding of another model, if it still exists."""
         async with self._lock:
@@ -267,6 +326,7 @@ class ExampleStore:
     async def _save_and_delete(self, removed: list[Example]) -> None:
         for example in removed:
             self._origins.pop(example.id, None)
+            self._pictures.pop(example.id, None)
         await self._store.async_save(self._data())
         for listener in list(self._listeners):
             listener()
@@ -285,6 +345,7 @@ class ExampleStore:
                     "model": example.model,
                     "added": example.added,
                     "vector": encode_vector(example.vector),
+                    **({"picture": picture} if (picture := self._pictures.get(example.id)) else {}),
                 }
                 for example in self.gallery
             ]
@@ -294,8 +355,8 @@ class ExampleStore:
         delete_files(self.crop_path(example_id) for example_id in example_ids)
 
 
-def _parse(record: Mapping[str, Any]) -> tuple[Example, Origin]:
-    """A stored example, checked like any input."""
+def _parse(record: Mapping[str, Any]) -> tuple[Example, Origin, str | None]:
+    """A stored example, its origin and its picture, checked like any input."""
     example_id, pet, model = record["id"], record["pet"], record["model"]
     if not isinstance(example_id, str) or not EXAMPLE_ID.fullmatch(example_id):
         raise ValueError("not the ID of an example")
@@ -305,6 +366,11 @@ def _parse(record: Mapping[str, Any]) -> tuple[Example, Origin]:
     if not isinstance(added, (int, float)) or not math.isfinite(added):
         raise ValueError("an example needs the time it was added")
     origin = Origin(record["origin"])
+    picture = record.get("picture")
+    if picture is not None and (
+        origin in GIVEN or not isinstance(picture, str) or not FILE_ID.fullmatch(picture)
+    ):
+        raise ValueError("not the picture of a learned example")
     example = Example(
         id=example_id,
         pet=pet,
@@ -313,7 +379,7 @@ def _parse(record: Mapping[str, Any]) -> tuple[Example, Origin]:
         added=float(added),
         uploaded=origin in GIVEN,
     )
-    return example, origin
+    return example, origin, picture
 
 
 async def async_remove_data(hass: HomeAssistant, entry_id: str) -> None:

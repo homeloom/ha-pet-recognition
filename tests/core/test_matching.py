@@ -16,6 +16,7 @@ from custom_components.pet_recognition.core.matching import (
     normalise,
     resembles,
     similarity,
+    tell,
 )
 
 MODEL = "model-a"
@@ -358,3 +359,29 @@ def test_resembles(scores: dict[str, float], expected: list[str], best: str | No
 def test_settings_stay_in_range(threshold: float, margin: float) -> None:
     with pytest.raises(ValueError, match="from"):
         MatchSettings(threshold, margin)
+
+
+@pytest.mark.parametrize(
+    ("angles", "pets", "closest"),
+    [
+        # One animal, told or not, and the pet it resembles.
+        ([0], ("a",), "a"),
+        ([45], (), "a"),
+        # Each animal told: the pets of the picture, once each and sorted.
+        ([90, 0, 2], ("a", "b"), None),
+        # One animal not told leaves the picture unknown.
+        ([90, 45], (), None),
+        # No animal tells nothing.
+        ([], (), None),
+    ],
+)
+def test_tell(angles: list[float], pets: tuple[str, ...], closest: str | None) -> None:
+    gallery = Gallery()
+    for number, (pet, angle) in enumerate([("a", 0), ("b", 90), ("b", 92)]):
+        gallery.add(example(f"{number}", pet, angle))
+    told = tell([(unit(angle), MODEL) for angle in angles], gallery, ["b", "a"], MatchSettings())
+    assert told.pets == pets
+    assert told.resembles == closest
+    assert told.scores == tuple(
+        Nearest.compute(unit(angle), MODEL, gallery).scores() for angle in angles
+    )

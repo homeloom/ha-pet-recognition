@@ -57,7 +57,7 @@ from .const import (
     SUBENTRY_SOURCE,
 )
 from .coordinator import EngineCoordinator
-from .core.matching import MatchSettings, Nearest, decide, resembles
+from .core.matching import MatchSettings, tell
 from .core.visits import VisitSettings
 from .engine import (
     Analysis,
@@ -387,14 +387,16 @@ class Analyzer:
         match: MatchSettings,
     ) -> tuple[Record, list[tuple[str, bytes]]]:
         """Which pets the animals of a picture are, as far as their examples tell."""
-        expected = list(settings.pets)
         record = _record(pending, Status.ANALYZED)
+        vectors = [stored_vector(animal.embedding) for animal in analysis.animals]
+        told = tell(
+            [(vector, analysis.model) for vector in vectors],
+            self._examples.gallery,
+            settings.pets,
+            match,
+        )
         crops: list[tuple[str, bytes]] = []
-        decided: list[str | None] = []
-        for animal in analysis.animals:
-            vector = stored_vector(animal.embedding)
-            scores = Nearest.compute(vector, analysis.model, self._examples.gallery).scores()
-            decided.append(decide(scores, expected, match))
+        for animal, vector, scores in zip(analysis.animals, vectors, told.scores, strict=True):
             crop = new_id()
             crops.append((crop, animal.crop))
             record.detections.append(
@@ -405,16 +407,12 @@ class Analyzer:
                     crop=crop,
                     model=analysis.model,
                     scores=scores,
-                    vector=vector,
+                    # A picture decided needs its embeddings no more.
+                    vector=None if told.pets else vector,
                 )
             )
-        if decided and all(decided):
-            record.pets = tuple(sorted({pet for pet in decided if pet}))
-            # A picture decided needs its embeddings no more.
-            for detection in record.detections:
-                detection.vector = None
-        if len(record.detections) == 1:
-            record.resembles = resembles(record.detections[0].scores, expected)
+        record.pets = told.pets
+        record.resembles = told.resembles
         return record, crops
 
 

@@ -73,6 +73,7 @@ async def async_get_config_entry_diagnostics(
                 "pet": f"pet_{number}",
                 "species": subentry.data[CONF_SPECIES],
                 "examples": _count(store.gallery.of(key)),
+                "learned": sum(not example.uploaded for example in store.gallery.of(key)),
             }
             for number, (key, subentry) in enumerate(pets(entry).items(), start=1)
         ],

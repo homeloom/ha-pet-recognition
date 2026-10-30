@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- A brand icon, shown by Home Assistant 2026.3 and later, and by HACS.
+
 ## [0.3.0] - 2026-10-30
 
 Dashboards can show the visits of the pets, with their pictures, and

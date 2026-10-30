@@ -102,7 +102,13 @@ class PictureView(HomeAssistantView):
     requires_auth = True
 
     async def get(self, request: web.Request, entry_id: str, crop_id: str) -> web.Response:
-        """The JPEG crop, or 404 for anything that is not the crop of a picture kept."""
+        """The JPEG crop, or 404 for anything that is not the crop of a picture kept.
+
+        The companion apps load a relative URL of a notification with the
+        phone's token, but add it to the server's URL as a path, so its
+        signature comes escaped at the end of the crop's ID: it is left out.
+        """
+        crop_id = crop_id.partition("?")[0]
         entry = _loaded(request.app[KEY_HASS], entry_id)
         if entry is None or not FILE_ID.fullmatch(crop_id):
             return web.Response(status=HTTPStatus.NOT_FOUND)

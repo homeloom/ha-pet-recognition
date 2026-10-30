@@ -416,6 +416,7 @@ async def test_the_picture_of_a_question_only(
     freezer: FrozenDateTimeFactory,
     phones: Phones,
     hass_client_no_auth: ClientSessionGenerator,
+    hass_client: ClientSessionGenerator,
 ) -> None:
     entry = await asking(hass, aioclient_mock, shown, freezer, phones)
     await visit(hass, aioclient_mock, shown, freezer, 1)
@@ -434,5 +435,12 @@ async def test_the_picture_of_a_question_only(
         assert (await client.get(signed)).status == HTTPStatus.NOT_FOUND
     signed = signed_picture_url(hass, entry.entry_id, asked.crop)
     assert (await client.get(signed)).status == HTTPStatus.OK
+    # A companion app adds the URL to the server's as a path, escaped, and
+    # sends the phone's token.
+    user = await hass.auth.async_create_user("Phone", group_ids=["system-users"])
+    token = await hass.auth.async_create_refresh_token(user, "https://example.com/app")
+    phone = await hass_client(hass.auth.async_create_access_token(token))
+    assert (await phone.get(signed.replace("?", "%3F"))).status == HTTPStatus.OK
+    assert (await client.get(signed.replace("?", "%3F"))).status == HTTPStatus.UNAUTHORIZED
     journal(entry).crop_path(asked.crop).unlink()
     assert (await client.get(signed)).status == HTTPStatus.NOT_FOUND

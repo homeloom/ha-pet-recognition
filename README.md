@@ -57,7 +57,8 @@ Several photos can be added at once, in two ways:
   several files at once, on a phone too), then choose that folder. Folders
   are looked for a few levels deep in the media directories, without
   following symbolic links; each JPEG, PNG or WebP photo of the folder is
-  added, without its subfolders. The files are only read: they stay in
+  added, without its subfolders. Other files, such as HEIC photos straight
+  from a phone, are left out: export them as JPEG first. The files are only read: they stay in
   the media until you delete them.
 - **A zip archive** of photos, uploaded in the photo field. Its entries
   are read one by one in memory, never extracted to disk. Folders, hidden

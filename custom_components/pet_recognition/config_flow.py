@@ -55,7 +55,7 @@ from homeassistant.helpers.service_info.hassio import HassioServiceInfo
 from homeassistant.util import dt as dt_util
 from yarl import URL
 
-from .batches import Batch, Summary, archive_batch, folder_batch, media_folders
+from .batches import STOPS, Batch, Summary, archive_batch, folder_batch, media_folders
 from .const import (
     CONF_SPECIES,
     DOMAIN,
@@ -514,7 +514,7 @@ class PetFlow(ConfigSubentryFlow):
                     await self._learn(picture, Origin.UPLOAD)
                 except PictureError as err:
                     summary.skip(item.name, err.reason)
-                    if err.reason == "cannot_connect":
+                    if err.reason in STOPS:
                         for rest in batch.items[index + 1 :]:
                             summary.skip(rest.name, err.reason)
                         break

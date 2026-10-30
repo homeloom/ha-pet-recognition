@@ -31,6 +31,9 @@ FOLDER_LIMIT = 100
 # The most entries of an archive, and the most bytes read from it.
 ARCHIVE_ENTRIES = 1000
 ARCHIVE_BYTES = 256 * 1024 * 1024
+# Why a batch stops: what follows is not tried.
+ARCHIVE_SPENT = "archive_too_large"
+STOPS = frozenset({"cannot_connect", ARCHIVE_SPENT})
 # The most names a summary shows per group.
 SHOWN_NAMES = 30
 
@@ -145,7 +148,10 @@ def archive_batch(archive: zipfile.ZipFile, max_bytes: int) -> Batch:
 
 
 class _ArchiveReader:
-    """Reads the entries of an archive, within the bytes it may read in all."""
+    """Reads the entries of an archive, within the bytes it may read in all.
+
+    Once they are spent, no other entry is opened, and the batch stops.
+    """
 
     def __init__(self, archive: zipfile.ZipFile, max_bytes: int) -> None:
         self._archive = archive
@@ -155,14 +161,16 @@ class _ArchiveReader:
     def read(self, info: zipfile.ZipInfo) -> bytes:
         if info.file_size > self._max_bytes:
             raise PictureError("picture_too_large")
+        if (left := ARCHIVE_BYTES - self._read) <= 0:
+            raise PictureError(ARCHIVE_SPENT)
         try:
             with self._archive.open(info) as file:
-                data = file.read(self._max_bytes + 1)
+                data = file.read(min(self._max_bytes, left) + 1)
         except (zipfile.BadZipFile, zlib.error, RuntimeError, NotImplementedError, OSError) as err:
             raise PictureError("unreadable_picture") from err
         self._read += len(data)
-        if self._read > ARCHIVE_BYTES:
-            raise PictureError("archive_too_large")
+        if len(data) > left:
+            raise PictureError(ARCHIVE_SPENT)
         return _checked(data, self._max_bytes)
 
 

@@ -8,7 +8,7 @@ import io
 import zipfile
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import IO, Any
 
 import pytest
 import yarl
@@ -295,13 +295,35 @@ async def test_a_zip_archive_is_bounded(
     result = await send(hass, flow_id, {"photo": upload(zipped)})
     assert result["errors"] == {"base": "archive_too_large"}
 
-    # What is read of it in all.
-    monkeypatch.setattr(batches, "ARCHIVE_ENTRIES", 3)
-    monkeypatch.setattr(batches, "ARCHIVE_BYTES", len(jpeg("1")) * 2)
+
+@pytest.mark.parametrize("spare", [0, 1])
+async def test_no_entry_is_opened_past_the_bytes_of_an_archive(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    upload: Upload,
+    monkeypatch: pytest.MonkeyPatch,
+    spare: int,
+) -> None:
+    entry = await set_up(hass, aioclient_mock)
+    photos(aioclient_mock)
+    flow_id = await start(hass, entry)
+    await choose(hass, flow_id, "photo")
+    names = [f"0{number}.jpg" for number in range(1, 5)]
+    zipped = archive(*((name, jpeg(name[1])) for name in names))
+    opened: list[str] = []
+    open_entry = zipfile.ZipFile.open
+
+    def counted(self: zipfile.ZipFile, name: zipfile.ZipInfo) -> IO[bytes]:
+        opened.append(name.filename)
+        return open_entry(self, name)
+
+    monkeypatch.setattr(zipfile.ZipFile, "open", counted)
+    # Two photos in full, or one and a byte short of the second.
+    monkeypatch.setattr(batches, "ARCHIVE_BYTES", len(jpeg("1")) * 2 - spare)
     result = await send(hass, flow_id, {"photo": upload(zipped)})
-    assert await learn(hass, flow_id, result) == summary(
-        ["01.jpg", "02.jpg"], unreadable=["03.jpg"]
-    )
+    added = names[: 2 - spare]
+    assert await learn(hass, flow_id, result) == summary(added, unreadable=names[2 - spare :])
+    assert opened == names[:2]
 
 
 async def test_a_damaged_entry_of_a_zip_archive_is_skipped(
@@ -365,7 +387,7 @@ async def test_closing_the_flow_stops_the_batch(
     async def analyze(method: str, url: yarl.URL, data: bytes) -> AiohttpClientMockResponse:
         started.set()
         await asyncio.Event().wait()
-        raise AssertionError  # pragma: no cover
+        raise AssertionError  # pragma: no cover - the wait is cancelled
 
     engine(aioclient_mock, side_effect=analyze)
     closed: list[bool] = []

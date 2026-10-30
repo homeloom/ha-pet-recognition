@@ -80,6 +80,7 @@
           "description": "Photos so far: {count}. Add photos where the pet is the only animal, from different angles and lights. More can be added later.",
           "menu_options": {
             "photo": "Upload a photo",
+            "folder": "Add the photos of a media folder",
             "capture": "Take a photo from a camera or image",
             "finish": "Finish"
           }
@@ -89,6 +90,7 @@
           "description": "Examples of {pet}: {count}.",
           "menu_options": {
             "photo": "Upload a photo",
+            "folder": "Add the photos of a media folder",
             "capture": "Take a photo from a camera or image",
             "remove": "Remove examples",
             "rename": "Rename",
@@ -97,10 +99,21 @@
         },
         "photo": {
           "title": "Upload a photo of {pet}",
-          "description": "A JPEG, PNG or WebP photo where {pet} is the only animal. Submit without a photo to go back.",
+          "description": "A JPEG, PNG or WebP photo where {pet} is the only animal, or a zip archive of such photos. Submit without a photo to go back.",
           "data": {
-            "photo": "Photo"
+            "photo": "Photo or zip archive"
           }
+        },
+        "folder": {
+          "title": "Add the photos of a folder",
+          "description": "Upload several photos at once in **Media**, under **My media**, in a folder of their own, then choose it here. Each JPEG, PNG or WebP photo of the folder where {pet} is the only animal is added, without its subfolders. The files stay in the media. Submit without a folder to go back.",
+          "data": {
+            "folder": "Folder"
+          }
+        },
+        "learned": {
+          "title": "Photos of {pet}",
+          "description": "**Added ({added}):** {added_names}\n\n**Almost the same as another example ({duplicate}):** {duplicate_names}\n\n**Not a single animal of this species ({no_animal}):** {no_animal_names}\n\n**Not a JPEG, PNG or WebP photo, or too large ({unreadable}):** {unreadable_names}\n\n**Not added: the engine could not analyze them, or the pet is full ({not_added}):** {not_added_names}\n\nSubmit to go on."
         },
         "capture": {
           "title": "Take a photo of {pet}",
@@ -124,18 +137,24 @@
         }
       },
       "error": {
+        "archive_too_large": "The zip archive has too many files, or is too large once uncompressed.",
         "cannot_analyze": "The engine could not analyze this photo.",
         "cannot_capture": "No photo could be taken from this entity.",
         "cannot_connect": "The engine cannot be reached. Check that it runs, then try again.",
         "duplicate_picture": "This photo is almost the same as another example.",
         "empty_name": "Enter a name.",
         "engine_busy": "The engine is busy. Try again in a moment.",
+        "folder_not_found": "This folder no longer exists. Choose another one.",
         "no_animal": "No animal of this species was found in the photo.",
+        "no_media_folder": "No folder of the media holds photos yet. Upload some in **Media** first.",
         "picture_too_large": "The photo is too large for the engine.",
         "several_animals": "Several animals of this species are in the photo. Use a photo where the pet is alone.",
         "too_many_examples": "The pet has as many examples as it can keep. Remove some first.",
         "unreadable_picture": "The engine cannot read this photo. Use a JPEG, PNG or WebP photo.",
         "upload_failed": "The photo could not be read. Upload it again."
+      },
+      "progress": {
+        "learning": "Adding the photos to {pet}, a few seconds each."
       },
       "abort": {
         "entry_not_loaded": "The integration is not loaded. Check that it is set up, then try again.",

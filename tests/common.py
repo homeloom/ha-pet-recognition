@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,9 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.pet_recognition.const import DOMAIN
 
 from .answers import KEY, URL
+
+# Uploads a file, as the photo field of a form does, and gives its ID.
+type Upload = Callable[[bytes], str]
 
 SENSOR = "binary_sensor.pet_recognition_engine"
 # The version of the integration, which the engine of the same release shares.

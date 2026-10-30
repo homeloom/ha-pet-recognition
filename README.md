@@ -3,7 +3,7 @@
 Tell which of your pets appears in pictures from Home Assistant, count their
 visits, and learn from your answers. Everything runs locally.
 
-> **Status: 0.3.** Pets are recognized at their sources, and their visits
+> **Status: 0.4.** Pets are recognized at their sources, and their visits
 > counted per day. When it is unsure, it asks on the phones, and learns
 > from the answers and from the corrections you make. Dashboards can show
 > the visits and correct them.
@@ -50,8 +50,30 @@ photos from different angles and lights are a good start. Photos where
 the engine finds no animal or several are refused, and so are near copies
 of an example.
 
-A pet's gear button (**Change pet**) adds photos, removes examples (shown
-with their pictures), or renames the pet. A pet without examples cannot be
+Several photos can be added at once, in two ways:
+
+- **Add the photos of a media folder**: upload the photos in **Media**,
+  under **My media**, in a folder of their own (the upload there takes
+  several files at once, on a phone too), then choose that folder. Folders
+  are looked for a few levels deep in the media directories, without
+  following symbolic links; each JPEG, PNG or WebP photo of the folder is
+  added, without its subfolders. The files are only read: they stay in
+  the media until you delete them.
+- **A zip archive** of photos, uploaded in the photo field. Its entries
+  are read one by one in memory, never extracted to disk. Folders, hidden
+  files and macOS metadata are skipped; it holds at most 1000 entries and
+  256 MB once uncompressed, and each photo is told by its content, not by
+  its extension.
+
+The photos are added while the form shows its progress, a few seconds
+each, then a summary lists the photos added and those skipped, by file
+name: near copies, no single animal of the species, not a JPEG, PNG or
+WebP photo or too large, or not added because the engine could not
+analyze them or the pet is full. An engine that cannot be reached stops
+the batch.
+
+A pet's gear button (**Change pet**) adds photos, one or several at once,
+removes examples (shown with their pictures), or renames the pet. A pet without examples cannot be
 recognized, and a repair says so.
 
 Examples are kept in Home Assistant's storage, and their crops under

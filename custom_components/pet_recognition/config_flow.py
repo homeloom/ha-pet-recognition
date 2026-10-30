@@ -7,15 +7,19 @@ new announcement, after the app moved or got a new key, updates the entry
 instead of adding another one.
 
 Each pet is a subentry, taught from photos the user uploads or takes from a
-camera. A new pet's photos are kept in the flow and stored when the user
-finishes, under the pet's unique ID, which the flow chooses: an abandoned
-flow leaves nothing behind. In a pet's settings, each change is stored at
-once.
+camera, or from several at once: a folder of the media or a zip archive (see
+`batches`), learned while the flow shows its progress. A new pet's photos
+are kept in the flow and stored when the user finishes, under the pet's
+unique ID, which the flow chooses: an abandoned flow leaves nothing behind.
+In a pet's settings, each change is stored at once.
 """
 
 from __future__ import annotations
 
+import asyncio
+import zipfile
 from collections.abc import Mapping
+from contextlib import ExitStack
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -51,6 +55,7 @@ from homeassistant.helpers.service_info.hassio import HassioServiceInfo
 from homeassistant.util import dt as dt_util
 from yarl import URL
 
+from .batches import Batch, Summary, archive_batch, folder_batch, media_folders
 from .const import (
     CONF_SPECIES,
     DOMAIN,
@@ -81,7 +86,9 @@ if TYPE_CHECKING:
 
 URL_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.URL))
 KEY_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
-PHOTO_SELECTOR = FileSelector(FileSelectorConfig(accept="image/jpeg,image/png,image/webp"))
+PHOTO_SELECTOR = FileSelector(
+    FileSelectorConfig(accept="image/jpeg,image/png,image/webp,.zip,application/zip")
+)
 CAMERA_SELECTOR = EntitySelector(EntitySelectorConfig(domain=["camera", "image"]))
 SPECIES_SELECTOR = SelectSelector(
     SelectSelectorConfig(
@@ -90,6 +97,7 @@ SPECIES_SELECTOR = SelectSelector(
 )
 
 CONF_PHOTO = "photo"
+CONF_FOLDER = "folder"
 CONF_EXAMPLES = "examples"
 
 
@@ -271,15 +279,24 @@ class PetRecognitionConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
 
-def _read_upload(hass: HomeAssistant, file_id: str, max_bytes: int) -> bytes:
-    """The bytes of an uploaded file, if it is not too large for the engine."""
+def _read_upload(hass: HomeAssistant, file_id: str, max_bytes: int) -> bytes | Batch:
+    """The bytes of an uploaded photo, if it is not too large for the engine,
+    or the batch of an uploaded zip archive, which keeps the upload open."""
+    stack = ExitStack()
     try:
-        with process_uploaded_file(hass, file_id) as path:
-            if Path(path).stat().st_size > max_bytes:
-                raise PictureError("picture_too_large")
-            return Path(path).read_bytes()
-    except (OSError, ValueError) as err:
+        path = Path(stack.enter_context(process_uploaded_file(hass, file_id)))
+        if zipfile.is_zipfile(path):
+            archive = stack.enter_context(zipfile.ZipFile(path))
+            batch = archive_batch(archive, max_bytes)
+            batch.close = stack.pop_all().close
+            return batch
+        if path.stat().st_size > max_bytes:
+            raise PictureError("picture_too_large")
+        return path.read_bytes()
+    except (OSError, ValueError, zipfile.BadZipFile) as err:
         raise PictureError("upload_failed") from err
+    finally:
+        stack.close()
 
 
 class PetFlow(ConfigSubentryFlow):
@@ -295,12 +312,19 @@ class PetFlow(ConfigSubentryFlow):
         # restarts: at most 200 crops, of a few tens of kilobytes each.
         self._pending: list[tuple[Candidate, Origin]] = []
         self._release: CALLBACK_TYPE | None = None
+        # The batch being learned, and what became of its photos.
+        self._batch = Batch([])
+        self._learning: asyncio.Task[Summary] | None = None
+        self._summary = Summary()
 
     @callback
     def async_remove(self) -> None:
-        """Let a reload forget the examples of a pet that was not created."""
+        """Let a reload forget the examples of a pet that was not created, and
+        stop learning a batch."""
         if self._release:
             self._release()
+        if self._learning:
+            self._learning.cancel()
 
     def _data(self) -> PetRecognitionData:
         entry = self._get_entry()
@@ -369,19 +393,20 @@ class PetFlow(ConfigSubentryFlow):
         if self.source == SOURCE_USER:
             return self.async_show_menu(
                 step_id="photos",
-                menu_options=["photo", "capture", "finish"],
+                menu_options=["photo", "folder", "capture", "finish"],
                 description_placeholders=placeholders,
             )
         return self.async_show_menu(
             step_id="change",
-            menu_options=["photo", "capture", "remove", "rename", "done"],
+            menu_options=["photo", "folder", "capture", "remove", "rename", "done"],
             description_placeholders=placeholders,
         )
 
     async def async_step_photo(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
-        """Upload a photo of the pet, or go back without one."""
+        """Upload a photo of the pet, or a zip archive of photos, or go back
+        without one."""
         errors: dict[str, str] = {}
         if user_input is not None and not user_input.get(CONF_PHOTO):
             return self._menu()
@@ -389,10 +414,13 @@ class PetFlow(ConfigSubentryFlow):
             try:
                 if (info := self._data().coordinator.data) is None:
                     raise PictureError("cannot_connect")
-                picture = await self.hass.async_add_executor_job(
+                upload = await self.hass.async_add_executor_job(
                     _read_upload, self.hass, user_input[CONF_PHOTO], info.max_bytes
                 )
-                await self._learn(picture, Origin.UPLOAD)
+                if isinstance(upload, Batch):
+                    self._batch = upload
+                    return await self.async_step_learning()
+                await self._learn(upload, Origin.UPLOAD)
             except PictureError as err:
                 errors["base"] = err.reason
             else:
@@ -403,6 +431,98 @@ class PetFlow(ConfigSubentryFlow):
             description_placeholders={"pet": self._name},
             errors=errors,
         )
+
+    async def async_step_folder(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Learn every photo of a folder of the media, or go back without one."""
+        if user_input is not None and not user_input.get(CONF_FOLDER):
+            return self._menu()
+        media_dirs = dict(self.hass.config.media_dirs)
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            try:
+                if (info := self._data().coordinator.data) is None:
+                    raise PictureError("cannot_connect")
+                self._batch = await self.hass.async_add_executor_job(
+                    folder_batch, media_dirs, user_input[CONF_FOLDER], info.max_bytes
+                )
+            except PictureError as err:
+                errors["base"] = err.reason
+            else:
+                return await self.async_step_learning()
+        folders = await self.hass.async_add_executor_job(media_folders, media_dirs)
+        schema = vol.Schema({})
+        if folders:
+            options = [
+                SelectOptionDict(value=value, label=label) for value, label in folders.items()
+            ]
+            schema = vol.Schema(
+                {vol.Optional(CONF_FOLDER): SelectSelector(SelectSelectorConfig(options=options))}
+            )
+        elif not errors:
+            errors["base"] = "no_media_folder"
+        return self.async_show_form(
+            step_id="folder",
+            data_schema=schema,
+            description_placeholders={"pet": self._name},
+            errors=errors,
+        )
+
+    async def async_step_learning(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Show the progress of the batch being learned, then its summary."""
+        if self._learning is None:
+            # Not started at once, so that the progress is shown before it ends.
+            self._learning = self.hass.async_create_task(
+                self._async_learn(self._batch), eager_start=False
+            )
+        if not self._learning.done():
+            return self.async_show_progress(
+                step_id="learning",
+                progress_action="learning",
+                progress_task=self._learning,
+                description_placeholders={"pet": self._name},
+            )
+        self._summary = self._learning.result()
+        self._learning, self._batch = None, Batch([])
+        return self.async_show_progress_done(next_step_id="learned")
+
+    async def async_step_learned(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Show what became of the photos of the batch."""
+        if user_input is not None:
+            return self._menu()
+        return self.async_show_form(
+            step_id="learned",
+            data_schema=vol.Schema({}),
+            description_placeholders={"pet": self._name, **self._summary.placeholders()},
+        )
+
+    async def _async_learn(self, batch: Batch) -> Summary:
+        """Learn each photo of a batch in turn, the photos read outside the loop."""
+        summary = Summary()
+        try:
+            for index, item in enumerate(batch.items):
+                try:
+                    # A new pet takes no more, while a pet's examples make room.
+                    if self.source == SOURCE_USER and len(self._pending) >= EXAMPLE_LIMIT:
+                        raise PictureError("too_many_examples")
+                    picture = await self.hass.async_add_executor_job(item.read)
+                    await self._learn(picture, Origin.UPLOAD)
+                except PictureError as err:
+                    summary.skip(item.name, err.reason)
+                    if err.reason == "cannot_connect":
+                        for rest in batch.items[index + 1 :]:
+                            summary.skip(rest.name, err.reason)
+                        break
+                else:
+                    summary.added.append(item.name)
+        finally:
+            await self.hass.async_add_executor_job(batch.close)
+        return summary
 
     async def async_step_capture(
         self, user_input: dict[str, Any] | None = None

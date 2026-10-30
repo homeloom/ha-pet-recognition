@@ -34,7 +34,7 @@ from .questions import Asker, async_clear_questions
 from .repairs import async_delete_source_issues, async_follow_renames, async_watch_entities
 from .services import async_setup_services
 from .sources import Analyzer, SourceWatcher, source_settings, sources
-from .views import ExampleView, PictureView
+from .views import ExampleView, FrameView, PictureView
 from .websocket import async_setup_websocket
 
 PLATFORMS = [
@@ -70,6 +70,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     sources rename, and register the actions and the websocket commands."""
     hass.http.register_view(ExampleView())
     hass.http.register_view(PictureView())
+    hass.http.register_view(FrameView())
     async_follow_renames(hass)
     async_setup_services(hass)
     async_setup_websocket(hass)
@@ -111,7 +112,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: PetRecognitionConfigEntr
                 hass, reembedder.async_run(model), "pet_recognition embed examples again"
             )
 
-    journal = await async_get_journal(hass, entry.entry_id)
+    settings = {
+        source_id: source_settings(entry, subentry)
+        for source_id, subentry in sources(entry).items()
+    }
+    journal = await async_get_journal(
+        hass,
+        entry.entry_id,
+        {
+            source_id
+            for source_id, each in settings.items()
+            if each.visits.every_picture_shows_a_pet
+        },
+    )
     # What concerns sources, entities and pets removed meanwhile.
     await journal.async_keep(
         {source_id: subentry.data[CONF_ENTITIES] for source_id, subentry in sources(entry).items()},
@@ -130,10 +143,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: PetRecognitionConfigEntr
     entry.async_on_unload(coordinator.async_add_listener(_engine_updated))
     _engine_updated()
 
-    settings = {
-        source_id: source_settings(entry, subentry)
-        for source_id, subentry in sources(entry).items()
-    }
     # Before the purge, which keeps whole the visits it groups.
     history = History(journal, {source_id: each.visits for source_id, each in settings.items()})
     entry.async_on_unload(history.async_start())

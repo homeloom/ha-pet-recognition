@@ -18,9 +18,9 @@ from homeassistant.util import dt as dt_util
 from . import PetRecognitionConfigEntry, PetRecognitionData
 from .const import CONF_KIND
 from .core.matching import OTHER_ANIMAL
-from .core.visits import DayCount, Visit
+from .core.visits import DayCount, Picture, Run, Visit
 from .counts import VisitCounter
-from .entity import JournalEntity, hub_device, subentry_device
+from .entity import JournalEntity, ShowsAPicture, hub_device, subentry_device
 from .examples import ExampleStore
 from .journal import Record
 from .pets import pets
@@ -181,8 +181,8 @@ def confidence(record: Record, pet: str) -> float | None:
     return round(max(scores), 2) if scores else None
 
 
-class LastVisitor(JournalEntity, SensorEntity):
-    """Who came in the latest visit of a source."""
+class LastVisitor(ShowsAPicture, JournalEntity, SensorEntity):
+    """Who came in the latest visit of a source, with its picture."""
 
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_translation_key = "last_visitor"
@@ -195,6 +195,7 @@ class LastVisitor(JournalEntity, SensorEntity):
         titles: dict[str, str],
     ) -> None:
         super().__init__(data.journal)
+        self._entry_id = entry_id
         self._source = subentry.subentry_id
         self._history = data.history
         self._titles = titles
@@ -228,6 +229,11 @@ class LastVisitor(JournalEntity, SensorEntity):
         return OTHER_ANIMAL if other else UNKNOWN_ANIMAL
 
     @property
+    def entity_picture(self) -> str | None:
+        """The picture that stands for the latest visit."""
+        return self._picture(_shown(self._visit()))
+
+    @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """The pets of the latest visit."""
         if (visit := self._visit()) is None:
@@ -235,8 +241,9 @@ class LastVisitor(JournalEntity, SensorEntity):
         return {"pets": self._pets(visit)}
 
 
-class VisitsToReview(SensorEntity):
-    """The visits of a source that ended unsure, among the pictures kept."""
+class VisitsToReview(ShowsAPicture, SensorEntity):
+    """The visits of a source that ended unsure, among the pictures kept,
+    with the picture of the latest."""
 
     _attr_has_entity_name = True
     _attr_should_poll = False
@@ -244,7 +251,9 @@ class VisitsToReview(SensorEntity):
     _attr_translation_key = "visits_to_review"
 
     def __init__(self, entry_id: str, subentry: ConfigSubentry, data: PetRecognitionData) -> None:
+        self._entry_id = entry_id
         self._source = subentry.subentry_id
+        self._journal = data.journal
         self._history = data.history
         self._counter = data.counter
         self._attr_unique_id = f"{entry_id}_{subentry.subentry_id}_visits_to_review"
@@ -252,6 +261,7 @@ class VisitsToReview(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         """Follow the visits that end, and the corrections."""
+        await super().async_added_to_hass()
         self.async_on_remove(self._counter.async_add_listener(self.async_write_ha_state))
 
     def _visits(self) -> list[Visit]:
@@ -268,6 +278,17 @@ class VisitsToReview(SensorEntity):
         """The latest of them, to correct with the `assign_visit` action."""
         visits = self._visits()
         return {"latest_visit_id": visits[-1].id if visits else None}
+
+    @property
+    def entity_picture(self) -> str | None:
+        """The picture that stands for the latest of them."""
+        visits = self._visits()
+        return self._picture(_shown(visits[-1] if visits else None))
+
+
+def _shown(visit: Visit | None) -> Picture | None:
+    """The picture that stands for a visit, as a question shows it."""
+    return None if visit is None else Run(list(visit.pictures), visit.pets).shown
 
 
 class DayCountEntity(SensorEntity):

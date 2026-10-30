@@ -37,7 +37,7 @@ async def test_info_gives_what_the_engine_is(
     aioclient_mock.get(f"{URL}/v1/info", json=info(future_key="ignored"))
     found = await client.info()
     assert (found.version, found.model, found.species) == (
-        "0.4.1",
+        "0.5.0",
         MODEL,
         frozenset({"bird", "cat", "dog"}),
     )

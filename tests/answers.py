@@ -40,7 +40,7 @@ def info(**changes: object) -> dict[str, Any]:
     """The answer of /v1/info."""
     body = {
         "api": 1,
-        "version": "0.4.1",
+        "version": "0.5.0",
         "model": MODEL,
         "species": ["bird", "cat", "dog"],
         "max_bytes": 20 * 1024 * 1024,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -369,6 +370,43 @@ async def test_files_named_by_nothing_are_deleted_each_time_the_journal_is_got(
         # The source's last picture keeps its frame.
         assert names(journal.frames) == {f"{item.id}.frame", f"{done_item.id}.frame"}
         assert names(journal.crops) == {f"{done.detections[0].crop}.jpg"}
+
+
+async def test_a_source_of_pictures_of_a_pet_keeps_those_without_an_animal(
+    hass: HomeAssistant,
+) -> None:
+    journal = await async_get_journal(hass, ENTRY, {"feeder"})
+    assert journal.every_picture == {"feeder"}
+    seen = pending("feeder", taken=1)
+    with_animal = record(seen)
+    await analyzed(journal, seen, with_animal, [(with_animal.detections[0].crop, CROP)])
+    empty = [pending("feeder", taken=taken) for taken in (2, 3)]
+    for item in empty:
+        await analyzed(journal, item, replace(record(item), detections=[]))
+    # Elsewhere, a picture without an animal is not kept.
+    garden, nobody = pending("garden", taken=1), pending("garden", taken=2)
+    shown = record(garden)
+    await analyzed(journal, garden, shown, [(shown.detections[0].crop, CROP)])
+    await analyzed(journal, nobody, replace(record(nobody), detections=[]))
+    # The latest picture of the feeder is its latest, without an animal; the
+    # one with an animal gave way to it, but keeps its crop.
+    assert journal.last_picture("feeder") == journal.records[2]
+    assert journal.last_picture("garden") == shown
+    kept = {item.id for item in empty} | {garden.id}
+    assert journal.kept_frames() == kept
+    assert names(journal.frames) == {f"{frame}.frame" for frame in kept}
+    assert len(names(journal.crops)) == 2
+    assert await journal.async_read_frame(empty[0].id) == PICTURE
+
+    # A purge takes the picture with its record.
+    await journal.async_purge(2.5)
+    assert journal.kept_frames() == {empty[1].id, garden.id}
+    assert names(journal.frames) == {f"{empty[1].id}.frame", f"{garden.id}.frame"}
+
+    # Once the feeder takes other pictures too, they go as the journal is got again.
+    assert await async_get_journal(hass, ENTRY) is journal
+    assert journal.last_picture("feeder") is None
+    assert names(journal.frames) == {f"{garden.id}.frame"}
 
 
 def stored(data: object) -> dict[str, object]:

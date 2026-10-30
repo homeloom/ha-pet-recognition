@@ -34,7 +34,7 @@ from .options import entry_options
 from .pets import pets
 from .services import async_assign, find_visit, invalid, loaded_entries
 from .sources import source_settings, sources
-from .views import signed_crop_url
+from .views import picture_paths, signed_url
 
 if TYPE_CHECKING:
     from . import PetRecognitionConfigEntry
@@ -94,9 +94,9 @@ def ws_overview(
                     ),
                 }
             )
-            ended, crops = _ended(entry, source_id), _crops(entry, source_id)
+            ended, paths = _ended(entry, source_id), _paths(entry, source_id)
             result["visits"] += [
-                _visit(hass, connection, entry, visit, visit.id in ended, crops)
+                _visit(hass, connection, entry, visit, visit.id in ended, paths)
                 for visit in entry.runtime_data.history.visits(source_id)
                 if _in(visit, max(start, kept), end)
             ]
@@ -136,7 +136,7 @@ async def ws_assign(
         chosen.append(OTHER_ANIMAL)
     now = await async_assign(entry, source, visit, chosen)
     ended = now.id in _ended(entry, source)
-    shown = _visit(hass, connection, entry, now, ended, _crops(entry, source))
+    shown = _visit(hass, connection, entry, now, ended, _paths(entry, source))
     connection.send_result(msg["id"], {"visit": shown})
 
 
@@ -168,12 +168,12 @@ def _visit(
     entry: PetRecognitionConfigEntry,
     visit: Visit,
     ended: bool,
-    crops: dict[str, str],
+    paths: dict[str, str],
 ) -> dict[str, Any]:
-    """A visit as the commands give it, with the crop of the picture that
+    """A visit as the commands give it, with what shows the picture that
     stands for it, as a question shows it."""
     ids = {key: subentry.subentry_id for key, subentry in pets(entry).items()}
-    crop = crops.get(Run(list(visit.pictures), visit.pets).shown.id)
+    path = paths.get(Run(list(visit.pictures), visit.pets).shown.id)
     return {
         "id": visit.id,
         "source": visit.source,
@@ -183,16 +183,10 @@ def _visit(
         "pets": [ids[pet] for pet in visit.pets if pet in ids],
         "other_animal": OTHER_ANIMAL in visit.pets,
         "unsure": visit.unsure,
-        "picture": None
-        if crop is None
-        else signed_crop_url(hass, entry.entry_id, crop, connection.refresh_token_id),
+        "picture": None if path is None else signed_url(hass, path, connection.refresh_token_id),
     }
 
 
-def _crops(entry: PetRecognitionConfigEntry, source: str) -> dict[str, str]:
-    """The crop of the largest animal of each picture of a source, by picture ID."""
-    return {
-        record.id: max(record.detections, key=lambda detection: detection.area).crop
-        for record in entry.runtime_data.journal.of(source)
-        if record.detections
-    }
+def _paths(entry: PetRecognitionConfigEntry, source: str) -> dict[str, str]:
+    """What shows each picture of a source, by picture ID."""
+    return picture_paths(entry.entry_id, entry.runtime_data.journal, source)

@@ -189,9 +189,15 @@ async def test_the_overview(
     ]
 
     # The crops of the visits, whether a question showed them or not, are
-    # served without a header; a picture without an animal has none.
-    assert pictures[2] is None
+    # served without a header; a picture without an animal, which the
+    # feeder keeps, is served itself.
     client = await hass_client_no_auth()
+    assert pictures[2].startswith(
+        f"/api/pet_recognition/frame/{entry.entry_id}/{going_on.id}?authSig="
+    )
+    response = await client.get(pictures[2])
+    assert response.status == HTTPStatus.OK
+    assert await response.read() == shown[FEEDER]
     for picture, record in zip(pictures[:2], (unsure, of_b), strict=True):
         assert picture.startswith(
             f"/api/pet_recognition/picture/{entry.entry_id}/{record.detections[0].crop}?authSig="
@@ -322,7 +328,8 @@ async def test_assign(
     )
     visit_now = answer["result"]["visit"]
     assert (visit_now["pets"], visit_now["other_animal"]) == ([pets[PET_C]], True)
-    assert (visit_now["ended"], visit_now["picture"]) == (False, None)
+    assert visit_now["ended"] is False
+    assert visit_now["picture"].startswith(f"/api/pet_recognition/frame/{entry.entry_id}/")
     await settle(hass)
     assert going_on.pets == (PET_C, OTHER_ANIMAL)
 

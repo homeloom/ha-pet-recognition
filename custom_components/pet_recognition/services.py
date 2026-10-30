@@ -6,6 +6,9 @@ pets are their devices; none, and not the other animal, says it is
 unknown. Every picture of the visit is corrected, which teaches its animal
 when a single pet is named. This is how a visit of several pets, or an old
 one, is corrected.
+
+The dashboards correct visits with the `pet_recognition/assign` command
+instead (see `websocket`), which any user who controls the source may use.
 """
 
 from __future__ import annotations
@@ -67,21 +70,31 @@ def async_setup_services(hass: HomeAssistant) -> None:
 async def _async_assign_visit(call: ServiceCall) -> ServiceResponse:
     """Correct a visit to the pets given, and answer with the visit as it is now."""
     hass = call.hass
-    entry, source, visit = _visit(hass, call.data.get(ATTR_VISIT_ID), call.data.get(ATTR_SOURCE))
+    entry, source, visit = find_visit(
+        hass, call.data.get(ATTR_VISIT_ID), call.data.get(ATTR_SOURCE)
+    )
     chosen = [_pet(hass, entry, device_id) for device_id in call.data[ATTR_PETS]]
     if call.data[ATTR_OTHER_ANIMAL]:
         chosen.append(OTHER_ANIMAL)
-    data = entry.runtime_data
-    correction = correct(Run(list(visit.pictures), visit.pets), chosen)
-    await data.learner.async_correct(correction, Origin.CORRECTION)
+    now = await async_assign(entry, source, visit, chosen)
     if not call.return_response:
         return None
     titles = {key: subentry.title for key, subentry in pets(entry).items()}
-    now = next(item for item in data.history.visits(source) if item.id == visit.id)
     return {"visit": visit_data(now, titles)}
 
 
-def _loaded(hass: HomeAssistant) -> list[PetRecognitionConfigEntry]:
+async def async_assign(
+    entry: PetRecognitionConfigEntry, source: str, visit: Visit, chosen: list[str]
+) -> Visit:
+    """Correct every picture of `visit` to the pets `chosen`, and return the visit now."""
+    data = entry.runtime_data
+    correction = correct(Run(list(visit.pictures), visit.pets), chosen)
+    await data.learner.async_correct(correction, Origin.CORRECTION)
+    return next(item for item in data.history.visits(source) if item.id == visit.id)
+
+
+def loaded_entries(hass: HomeAssistant) -> list[PetRecognitionConfigEntry]:
+    """The loaded entries of the integration."""
     return [
         entry
         for entry in hass.config_entries.async_entries(DOMAIN)
@@ -89,7 +102,7 @@ def _loaded(hass: HomeAssistant) -> list[PetRecognitionConfigEntry]:
     ]
 
 
-def _visit(
+def find_visit(
     hass: HomeAssistant, visit_id: str | None, entity_id: str | None
 ) -> tuple[PetRecognitionConfigEntry, str, Visit]:
     """The entry, the source and the visit an action is about."""
@@ -99,26 +112,26 @@ def _visit(
         entry = next(
             (
                 entry
-                for entry in _loaded(hass)
+                for entry in loaded_entries(hass)
                 if registered is not None and registered.config_entry_id == entry.entry_id
             ),
             None,
         )
         if entry is None or source is None or source not in sources(entry):
-            raise _invalid("unknown_source", entity_id=entity_id)
+            raise invalid("unknown_source", entity_id=entity_id)
         places = [(entry, source)]
     else:
-        places = [(entry, source) for entry in _loaded(hass) for source in sources(entry)]
+        places = [(entry, source) for entry in loaded_entries(hass) for source in sources(entry)]
     for entry, source in places:
         visits = entry.runtime_data.history.visits(source)
         if visit_id is None:
             if not visits:
-                raise _invalid("no_visit")
+                raise invalid("no_visit")
             return entry, source, visits[-1]
         for visit in visits:
             if visit.id == visit_id:
                 return entry, source, visit
-    raise _invalid("unknown_visit", visit_id=str(visit_id))
+    raise invalid("unknown_visit", visit_id=str(visit_id))
 
 
 def _pet(hass: HomeAssistant, entry: PetRecognitionConfigEntry, device_id: str) -> str:
@@ -129,10 +142,11 @@ def _pet(hass: HomeAssistant, entry: PetRecognitionConfigEntry, device_id: str) 
             device.identifiers
         ):
             return key
-    raise _invalid("unknown_pet", device_id=device_id)
+    raise invalid("unknown_pet", device_id=device_id)
 
 
-def _invalid(error: str, **placeholders: str) -> ServiceValidationError:
+def invalid(error: str, **placeholders: str) -> ServiceValidationError:
+    """An error of the input of an action or a command, with its translation."""
     return ServiceValidationError(
         translation_domain=DOMAIN,
         translation_key=error,

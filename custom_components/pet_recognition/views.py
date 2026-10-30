@@ -1,4 +1,5 @@
-"""The crops of the examples, for administrators, and of the questions, for the phones."""
+"""The crops of the examples, for administrators, and of the pictures kept, for
+the phones and the dashboards."""
 
 from __future__ import annotations
 
@@ -47,6 +48,19 @@ def signed_picture_url(hass: HomeAssistant, entry_id: str, crop_id: str) -> str:
     )
 
 
+def signed_crop_url(
+    hass: HomeAssistant, entry_id: str, crop_id: str, refresh_token_id: str | None
+) -> str:
+    """A relative URL of the crop of a picture kept, for a dashboard, signed
+    for the user of `refresh_token_id` for half an hour."""
+    return async_sign_path(
+        hass,
+        PICTURE_URL.format(entry_id=entry_id, crop_id=crop_id),
+        SIGNED_FOR,
+        refresh_token_id=refresh_token_id,
+    )
+
+
 def _loaded(hass: HomeAssistant, entry_id: str) -> ConfigEntry | None:
     """A loaded entry of the integration."""
     entry = hass.config_entries.async_get_entry(entry_id)
@@ -80,19 +94,25 @@ class ExampleView(HomeAssistantView):
 
 
 class PictureView(HomeAssistantView):
-    """Serves the crop a question shows, to any user, such as a phone's."""
+    """Serves the crop of a picture kept, or of a question, to any user, such
+    as a phone's or a dashboard's."""
 
     url = PICTURE_URL
     name = "api:pet_recognition:picture"
     requires_auth = True
 
     async def get(self, request: web.Request, entry_id: str, crop_id: str) -> web.Response:
-        """The JPEG crop, or 404 for anything that is not the crop of a question."""
+        """The JPEG crop, or 404 for anything that is not the crop of a picture kept."""
         entry = _loaded(request.app[KEY_HASS], entry_id)
         if entry is None or not FILE_ID.fullmatch(crop_id):
             return web.Response(status=HTTPStatus.NOT_FOUND)
         journal = entry.runtime_data.journal
-        if not any(asked.crop == crop_id for asked in journal.asked):
+        # The crop of a question is that of one of its pictures, kept longer than it.
+        if not any(
+            detection.crop == crop_id
+            for record in journal.records
+            for detection in record.detections
+        ):
             return web.Response(status=HTTPStatus.NOT_FOUND)
         try:
             crop = await journal.async_read_crop(crop_id)

@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-30
+
+Dashboards can show the visits of the pets, with their pictures, and
+correct them.
+
+### Added
+
+- The `pet_recognition/overview` websocket command, for any user: the pets,
+  the sources and the visits of a period, yesterday and today by default,
+  never before the days pictures are kept. Each visit has the crop that
+  stands for it, through a link signed for that user for 30 minutes.
+- The `pet_recognition/assign` websocket command corrects a visit as the
+  **Assign visit** action does, for any user allowed to control the source's
+  **Correct last visit**. The action stays for administrators.
+
+### Changed
+
+- The crop of any picture kept can be loaded through a signed link, not
+  only that of a question.
+
 ## [0.2.0] - 2026-10-29
 
 Pets are asked about on the phones when unsure, and learn from the answers

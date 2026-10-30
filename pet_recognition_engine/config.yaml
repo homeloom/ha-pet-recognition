@@ -1,5 +1,5 @@
 name: Pet Recognition Engine
-version: "0.2.0"
+version: "0.3.0"
 slug: pet_recognition_engine
 description: Finds and embeds the animals in pictures, locally, for the Pet Recognition integration.
 url: https://github.com/homeloom/ha-pet-recognition

@@ -35,6 +35,7 @@ from .repairs import async_delete_source_issues, async_follow_renames, async_wat
 from .services import async_setup_services
 from .sources import Analyzer, SourceWatcher, source_settings, sources
 from .views import ExampleView, PictureView
+from .websocket import async_setup_websocket
 
 PLATFORMS = [
     Platform.BINARY_SENSOR,
@@ -66,11 +67,12 @@ type PetRecognitionConfigEntry = ConfigEntry[PetRecognitionData]
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Serve the crops of the examples and questions, follow the entities the
-    sources rename, and register the actions."""
+    sources rename, and register the actions and the websocket commands."""
     hass.http.register_view(ExampleView())
     hass.http.register_view(PictureView())
     async_follow_renames(hass)
     async_setup_services(hass)
+    async_setup_websocket(hass)
     return True
 
 

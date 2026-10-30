@@ -410,6 +410,9 @@
     },
     "unknown_pet": {
       "message": "Device {device_id} is no pet of that Pet Recognition entry."
+    },
+    "unknown_pet_id": {
+      "message": "{pet_id} is no pet of that Pet Recognition entry."
     }
   },
   "issues": {

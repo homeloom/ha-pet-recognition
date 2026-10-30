@@ -66,3 +66,14 @@ def delete_unknown_files(directory: Path, suffix: str, known: Callable[[str], bo
             path.suffix != suffix or not FILE_ID.fullmatch(path.stem) or not known(path.stem)
         ):
             path.unlink()
+
+
+def content_type(picture: bytes) -> str:
+    """The type of a picture, told by its first bytes; JPEG when unsure."""
+    if picture.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if picture[:4] == b"RIFF" and picture[8:12] == b"WEBP":
+        return "image/webp"
+    if picture.startswith(b"GIF8"):
+        return "image/gif"
+    return "image/jpeg"

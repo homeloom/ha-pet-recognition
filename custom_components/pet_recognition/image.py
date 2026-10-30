@@ -13,6 +13,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import PetRecognitionConfigEntry
 from .entity import JournalEntity, subentry_device
+from .files import content_type
 from .journal import Journal, Record
 from .pets import pets
 from .sources import sources
@@ -39,17 +40,6 @@ async def async_setup_entry(
         async_add_entities(
             [SourcePicture(hass, entry.entry_id, subentry, journal)], config_subentry_id=source_id
         )
-
-
-def content_type(picture: bytes) -> str:
-    """The type of a picture, told by its first bytes; JPEG when unsure."""
-    if picture.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "image/png"
-    if picture[:4] == b"RIFF" and picture[8:12] == b"WEBP":
-        return "image/webp"
-    if picture.startswith(b"GIF8"):
-        return "image/gif"
-    return "image/jpeg"
 
 
 class LastPicture(JournalEntity, ImageEntity):

@@ -13,7 +13,7 @@ from .const import DOMAIN
 from .core.corrections import correct, latest_run
 from .core.matching import OTHER_ANIMAL
 from .core.visits import Run
-from .entity import JournalEntity, subentry_device
+from .entity import JournalEntity, ShowsAPicture, subentry_device
 from .examples import Origin
 from .pets import pets
 from .sensor import UNKNOWN_ANIMAL
@@ -39,8 +39,8 @@ async def async_setup_entry(
         )
 
 
-class CorrectLastVisit(JournalEntity, SelectEntity):
-    """Who was in the latest run of a source: choosing corrects it.
+class CorrectLastVisit(ShowsAPicture, JournalEntity, SelectEntity):
+    """Who was in the latest run of a source, with its picture: choosing corrects it.
 
     The options are the pets expected at the source, by name, then the
     unknown and the other animal. A run of several pets shows none.
@@ -56,6 +56,7 @@ class CorrectLastVisit(JournalEntity, SelectEntity):
         expected: dict[str, str],
     ) -> None:
         super().__init__(data.journal)
+        self._entry_id = entry_id
         self._source = subentry.subentry_id
         self._history = data.history
         self._learner = data.learner
@@ -70,6 +71,11 @@ class CorrectLastVisit(JournalEntity, SelectEntity):
 
     def _run(self) -> Run | None:
         return latest_run(self._history.visits(self._source))
+
+    @property
+    def entity_picture(self) -> str | None:
+        """The picture that stands for the latest run."""
+        return self._picture(None if (run := self._run()) is None else run.shown)
 
     @property
     def current_option(self) -> str | None:

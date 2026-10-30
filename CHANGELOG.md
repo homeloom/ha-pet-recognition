@@ -6,6 +6,27 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-30
+
+Each visit can be seen, even when no animal was found in its picture.
+
+### Added
+
+- **Last visitor**, **Correct last visit** and **Visits to review** show
+  the picture of their visit as their entity picture, on the source's
+  device and on dashboards: the crop of the animal, or the picture itself
+  when no animal was found. Its URL is signed for two hours, signed again
+  each hour, and left out of the recorder.
+
+### Changed
+
+- At a source where every picture shows a pet, such as a feeder, a picture
+  where no animal is found is kept as long as what was found in it, since
+  it is all there is to show of its visit. **Last picture** then shows the
+  latest picture, with an animal or not; a question about such a visit
+  shows that picture on the phones; and the `picture` of such a visit in
+  the dashboard commands is that picture instead of `null`.
+
 ## [0.4.1] - 2026-10-30
 
 The picture of a question shows on the phones again.

@@ -128,7 +128,14 @@ Each source has a device with:
   when no pet could be told, or `other_animal`. Its `pets` attribute lists
   the pets of that visit.
 - **Last picture**: the latest picture of the source where an animal was
-  found.
+  found. At a source where every picture shows a pet, its latest picture,
+  with an animal or not.
+
+**Last visitor**, **Correct last visit** and **Visits to review** show the
+picture of their visit as their entity picture: the crop of the animal, as
+a question shows it, or the picture itself when no animal was found in it,
+at a source where every picture shows a pet. Its URL is signed for two
+hours, signed again each hour, and left out of the recorder.
 
 Each pet's device adds **Last seen**, when the latest visit where the pet
 was recognized started, with the source and the confidence as attributes,
@@ -241,8 +248,9 @@ while they still are.
   still unknown and was not corrected.
 - `picture` is the crop of the animal that stands for the visit, as a
   question shows it: the largest animal of the last picture where one is
-  seen. It is a relative URL, signed for the user for 30 minutes, which
-  loads without a header; `null` when no animal was found.
+  seen, or the picture itself when no animal was found and the source keeps
+  it (every picture shows a pet). It is a relative URL, signed for the user
+  for 30 minutes, which loads without a header; `null` when there is none.
 
 `pet_recognition/assign` corrects a visit as the **Assign visit** action
 does, for administrators and for any user allowed to control the source's
@@ -268,7 +276,9 @@ not control the source gets `unauthorized`.
 A picture is deleted once analyzed, except the latest picture of each
 source where an animal was found, which **Last picture** shows. A picture
 where no animal is found, such as a garden camera's picture of people
-passing by, is never kept. What was found in each picture is kept in a
+passing by, is not kept, except at a source where every picture shows a
+pet: there it is all there is to show of a visit where no animal was found,
+so it is kept as long as what was found in it. What was found in each picture is kept in a
 journal in Home Assistant's storage, with the crop of each animal under
 `pet_recognition/` in the configuration directory, for 7 days by default
 (see the options) and at most 2000 pictures per source. A visit goes as a
@@ -316,8 +326,9 @@ and animals per picture. Changes to the recognition apply to new pictures.
 
 Once a visit has ended, each part of it where no pet could be told becomes
 a question, sent to each phone of the options: "Who was at Feeder at
-08:12?", with the crop of the animal and three buttons, the two likeliest
-pets and **Other**, since Android shows three. A part of a visit is asked
+08:12?", with the crop of the animal, or the picture itself when no animal
+was found at a source where every picture shows a pet, and three buttons,
+the two likeliest pets and **Other**, since Android shows three. A part of a visit is asked
 about once, and at most two hours after the visit ended, so that a restart
 after a while asks nothing old.
 
@@ -363,10 +374,10 @@ Home Assistant's event loop.
 
 **What leaves Home Assistant**: the notifications go through the push relay
 of the companion apps, with the names of the pets and the source, the time,
-and a link to the crop. The crop itself stays in Home Assistant: the phone
-loads it from Home Assistant, through a link signed for 24 hours, which a
-restart of Home Assistant ends sooner. So the phone must reach Home
-Assistant to show it.
+and a link to the crop or the picture. They stay in Home Assistant: the
+phone loads them from Home Assistant, with its own sign-in or through a
+link signed for 24 hours. So the phone must reach Home Assistant to show
+them.
 
 ## How it works
 

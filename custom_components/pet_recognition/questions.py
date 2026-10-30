@@ -2,9 +2,10 @@
 
 Once a visit has ended, each of its runs that stays unknown becomes a
 question (see `core.doubts`), sent to each phone of the options: who was at
-the source at the time of the picture, with the crop of the animal, a
-button for each of the two likeliest pets, and Other, since Android shows
-three buttons. A question is asked at most two hours after its visit ended.
+the source at the time of the picture, with the crop of the animal, or the
+picture itself when it has none and is kept, a button for each of the two
+likeliest pets, and Other, since Android shows three buttons. A question
+is asked at most two hours after its visit ended.
 
 While a pet expected at a source has no example yet, one question at a time
 asks for the first ones, if the options say so. Once each has examples, a
@@ -54,7 +55,7 @@ from .options import entry_options
 from .pets import pets
 from .phones import PhoneMissingError, async_clear, async_notify, phone_users
 from .sources import SourceSettings
-from .views import signed_picture_url
+from .views import FRAME_URL, PICTURE_URL, signed_picture_url
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -316,8 +317,15 @@ class Asker:
             "group": GROUP,
             "actions": actions,
         }
+        entry_id = self._entry.entry_id
+        # The crop of the animal, or the picture itself when it has none, if kept.
+        path = None
         if asked.crop is not None:
-            data["image"] = signed_picture_url(self._hass, self._entry.entry_id, asked.crop)
+            path = PICTURE_URL.format(entry_id=entry_id, crop_id=asked.crop)
+        elif doubt.shown in self._journal.kept_frames():
+            path = FRAME_URL.format(entry_id=entry_id, picture_id=doubt.shown)
+        if path is not None:
+            data["image"] = signed_picture_url(self._hass, path)
         return message, data
 
     @callback

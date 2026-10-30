@@ -15,7 +15,11 @@ named nowhere. Those are deleted each time the entry loads.
 A picture is deleted once analyzed, except the latest picture of each
 source where an animal was found, which its last picture entity shows until
 a newer one comes. A picture where no animal is found, such as a garden
-camera's picture of people passing by, is never kept.
+camera's picture of people passing by, is not kept, except at a source that
+only takes pictures of a pet, such as a feeder: there the picture is all
+there is to show of a visit where no animal was found, so it stays as long
+as its record, and the latest picture of such a source is its latest
+picture, with an animal or not.
 
 A correction relabels pictures with the pets the user named, or with none
 to say they are unknown, and keeps them as a group of their own. They keep
@@ -162,17 +166,22 @@ class Asked:
         return self.doubt.state is State.OPEN
 
 
-async def async_get_journal(hass: HomeAssistant, entry_id: str) -> Journal:
+async def async_get_journal(
+    hass: HomeAssistant, entry_id: str, every_picture: Collection[str] = ()
+) -> Journal:
     """The journal of an entry, loaded the first time and kept across reloads.
 
-    Each time, the files it does not name are deleted, such as a picture
-    whose taking an unload interrupted.
+    `every_picture` names the sources that only take pictures of a pet,
+    whose pictures without an animal are kept. Each time, the files the
+    journal does not name are deleted, such as a picture whose taking an
+    unload interrupted.
     """
     journals = hass.data.setdefault(DATA_JOURNALS, {})
     if (journal := journals.get(entry_id)) is None:
         journal = Journal(hass, entry_id)
         await journal.async_load()
         journals[entry_id] = journal
+    journal.every_picture = frozenset(every_picture)
     await journal.async_delete_unknown_files()
     return journal
 
@@ -200,6 +209,8 @@ class Journal:
         # By source, the start of the latest visit announced as ended.
         self.announced: dict[str, float] = {}
         self.asked: list[Asked] = []
+        # The sources that only take pictures of a pet.
+        self.every_picture: frozenset[str] = frozenset()
         # The stored form of each record, by ID, made again only when it changes.
         self._rows: dict[str, dict[str, Any]] = {}
         self._listeners: list[Callable[[], None]] = []
@@ -220,9 +231,7 @@ class Journal:
 
     async def async_delete_unknown_files(self) -> None:
         """Delete the files the journal does not name."""
-        frames = {pending.id for pending in self.queue} | {
-            record.id for record in self._last_pictures().values()
-        }
+        frames = {pending.id for pending in self.queue} | self.kept_frames()
         crops = {detection.crop for record in self.records for detection in record.detections}
         await self._hass.async_add_executor_job(self._delete_unknown_files, frames, crops)
 
@@ -296,8 +305,19 @@ class Journal:
         return await self._hass.async_add_executor_job(self.crop_path(crop_id).read_bytes)
 
     def last_picture(self, source: str) -> Record | None:
-        """The latest picture of a source where an animal was found, whose file is kept."""
+        """The latest picture of a source whose file is kept: where an animal
+        was found, or any at a source that only takes pictures of a pet."""
         return self._last_pictures().get(source)
+
+    def kept_frames(self) -> set[str]:
+        """The records whose picture is kept: the latest picture of each
+        source, and the pictures without an animal of the sources that only
+        take pictures of a pet."""
+        return {record.id for record in self._last_pictures().values()} | {
+            record.id
+            for record in self.records
+            if not record.detections and record.source in self.every_picture
+        }
 
     def last_of_pet(self, pet: str) -> Record | None:
         """The latest picture where `pet` was recognized."""
@@ -432,14 +452,10 @@ class Journal:
             )
             return
         self.queue.remove(pending)
-        before = self.last_picture(record.source)
+        before = self.kept_frames()
         self.records.append(record)
-        after = self.last_picture(record.source)
-        # Only the frame of the source's last picture is kept.
-        kept = None if after is None else after.id
-        frames = [frame for frame in (pending.id,) if frame != kept]
-        if before is not None and before.id != kept:
-            frames.append(before.id)
+        after = self.kept_frames()
+        frames = [frame for frame in (pending.id, *before) if frame not in after]
         mine = [other for other in self.records if other.source == record.source]
         unknown = [other for other in mine if _vectors(other)]
         for other in unknown[:-VECTOR_LIMIT]:
@@ -534,10 +550,11 @@ class Journal:
         ]
 
     def _last_pictures(self) -> dict[str, Record]:
-        """The latest picture of each source where an animal was found."""
+        """The latest picture of each source where an animal was found, or
+        the latest of all at a source that only takes pictures of a pet."""
         latest: dict[str, Record] = {}
         for record in self.records:
-            if record.detections and (
+            if (record.detections or record.source in self.every_picture) and (
                 record.source not in latest or _order(record) > _order(latest[record.source])
             ):
                 latest[record.source] = record

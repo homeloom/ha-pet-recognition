@@ -18,7 +18,7 @@ from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
 from custom_components.pet_recognition.const import DOMAIN
 from custom_components.pet_recognition.core.doubts import Kind, State
 from custom_components.pet_recognition.diagnostics import async_get_config_entry_diagnostics
-from custom_components.pet_recognition.views import signed_picture_url
+from custom_components.pet_recognition.views import PICTURE_URL, signed_picture_url
 
 from .answers import CROP, animal, unit
 from .asking import (
@@ -187,12 +187,13 @@ async def test_one_learning_question_at_a_time(
     assert phones.cleared()[2:] == [("Phone 1", tag), ("Phone 2", tag)]
 
 
-async def test_a_visit_without_an_animal_in_sight_is_asked_without_a_picture(
+async def test_a_visit_without_an_animal_in_sight_shows_its_picture(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,
     shown: Shown,
     freezer: FrozenDateTimeFactory,
     phones: Phones,
+    hass_client_no_auth: ClientSessionGenerator,
 ) -> None:
     # The feeder takes pictures only of a pet, here with its head in the bowl.
     entry = await asking(hass, aioclient_mock, shown, freezer, phones)
@@ -200,6 +201,32 @@ async def test_a_visit_without_an_animal_in_sight_is_asked_without_a_picture(
     await until(hass, freezer, START + timedelta(minutes=1) + ENDS)
     asked = only_question(entry)
     assert (asked.crop, asked.choices) == (None, (PET_A, PET_B))
+    # No crop, so the picture itself, which the feeder keeps.
+    images = {data["image"] for _name, _message, data in phones.sent}
+    (image,) = images
+    path = f"/api/pet_recognition/frame/{entry.entry_id}/{asked.doubt.shown}"
+    assert image.startswith(f"{path}?authSig=")
+    client = await hass_client_no_auth()
+    response = await client.get(image)
+    assert response.status == HTTPStatus.OK
+    assert response.headers["Cache-Control"] == "private, no-store"
+    assert await response.read() == b"picture 1"
+
+
+async def test_a_question_without_a_picture_kept_has_none(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    shown: Shown,
+    freezer: FrozenDateTimeFactory,
+    phones: Phones,
+) -> None:
+    entry = await asking(hass, aioclient_mock, shown, freezer, phones)
+    # As if the feeder's pictures without an animal were not kept.
+    journal(entry).every_picture = frozenset()
+    await come(hass, aioclient_mock, shown, freezer, 1)
+    await until(hass, freezer, START + timedelta(minutes=1) + ENDS)
+    assert only_question(entry).crop is None
+    assert phones.sent
     for _name, _message, data in phones.sent:
         assert "image" not in data
 
@@ -431,9 +458,11 @@ async def test_the_picture_of_a_question_only(
         (entry.entry_id, "F" * 32),
         ("e" * 26, asked.crop),
     ):
-        signed = signed_picture_url(hass, entry_id, crop)
+        signed = signed_picture_url(hass, PICTURE_URL.format(entry_id=entry_id, crop_id=crop))
         assert (await client.get(signed)).status == HTTPStatus.NOT_FOUND
-    signed = signed_picture_url(hass, entry.entry_id, asked.crop)
+    signed = signed_picture_url(
+        hass, PICTURE_URL.format(entry_id=entry.entry_id, crop_id=asked.crop)
+    )
     assert (await client.get(signed)).status == HTTPStatus.OK
     # A companion app adds the URL to the server's as a path, escaped, and
     # sends the phone's token.

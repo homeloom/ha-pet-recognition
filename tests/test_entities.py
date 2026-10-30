@@ -15,8 +15,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 
 from custom_components.pet_recognition.core.matching import OTHER_ANIMAL
 from custom_components.pet_recognition.examples import Candidate, Origin
-from custom_components.pet_recognition.files import new_id
-from custom_components.pet_recognition.image import content_type
+from custom_components.pet_recognition.files import content_type, new_id
 from custom_components.pet_recognition.journal import Pending, Record, Status
 
 from .answers import CROP, MODEL, analysis, animal, unit
@@ -157,7 +156,9 @@ async def test_the_pending_pictures_are_counted(
 async def test_the_last_picture_of_a_source_shows_an_animal(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, shown: Shown
 ) -> None:
-    entry = await set_up(hass, aioclient_mock, shown)
+    entry = await set_up(
+        hass, aioclient_mock, shown, pet(PET_A), source(FEEDER, every_picture_shows_a_pet=False)
+    )
     state = hass.states.get(FEEDER_PICTURE)
     assert state is not None
     assert state.state == STATE_UNKNOWN
@@ -180,6 +181,23 @@ async def test_the_last_picture_of_a_source_shows_an_animal(
     journal(entry).frame_path(record.id).unlink()
     with pytest.raises(HomeAssistantError):
         await async_get_image(hass, FEEDER_PICTURE)
+
+
+async def test_a_feeder_shows_its_last_picture_even_without_an_animal(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, shown: Shown
+) -> None:
+    entry = await set_up(hass, aioclient_mock, shown)
+    await show(hass, shown, PNG, 1)
+    # The feeder only takes pictures of a pet: one where none is found is
+    # all there is to show of its visit, so it is kept, and shown.
+    answer(aioclient_mock)
+    await show(hass, shown, b"nobody", 2)
+    state = hass.states.get(FEEDER_PICTURE)
+    assert state is not None
+    assert state.state == at(2)
+    assert (await async_get_image(hass, FEEDER_PICTURE)).content == b"nobody"
+    (empty,) = (record for record in journal(entry).records if not record.detections)
+    assert {path.stem for path in journal(entry).frames.iterdir()} == {empty.id}
 
 
 @pytest.mark.parametrize(

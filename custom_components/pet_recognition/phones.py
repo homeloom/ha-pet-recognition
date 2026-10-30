@@ -38,14 +38,16 @@ class PhoneMissingError(HomeAssistantError):
     """The phone is no longer a mobile app device that can be notified."""
 
 
-async def async_notify(hass: HomeAssistant, phone: str, message: str, data: dict[str, Any]) -> None:
-    """Send a notification to a phone.
+async def async_notify(
+    hass: HomeAssistant, phone: str, title: str, message: str, data: dict[str, Any]
+) -> None:
+    """Send a notification with a title to a phone.
 
     Raises `PhoneMissingError` for a phone that is gone, after raising its
     repair, and `HomeAssistantError` for a failure worth trying again.
     """
     try:
-        await _async_send(hass, phone, message, data)
+        await _async_send(hass, phone, message, data, title)
     except InvalidDeviceAutomationConfig as err:
         async_phone_missing(hass, phone)
         raise PhoneMissingError(str(err)) from err
@@ -60,14 +62,18 @@ async def async_clear(hass: HomeAssistant, phones: Iterable[str], tag: str) -> N
             _LOGGER.debug("Cannot remove a notification from a phone: %s", err)
 
 
-async def _async_send(hass: HomeAssistant, phone: str, message: str, data: dict[str, Any]) -> None:
-    config = {
+async def _async_send(
+    hass: HomeAssistant, phone: str, message: str, data: dict[str, Any], title: str | None = None
+) -> None:
+    config: dict[str, Any] = {
         "device_id": phone,
         "domain": MOBILE_APP,
         "type": "notify",
         "message": message,
         "data": data,
     }
+    if title is not None:
+        config["title"] = title
     platform = await async_get_device_automation_platform(
         hass, MOBILE_APP, DeviceAutomationType.ACTION
     )

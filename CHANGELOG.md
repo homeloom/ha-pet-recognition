@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-31
+
+The questions on the phones look their part on iOS and Android.
+
+### Changed
+
+- The questions have a title, **Pet Recognition**, and a paw icon, and
+  stay grouped together.
+- **iOS**: with the icon, a question shows as a communication notification,
+  whose sender is the title, on a purple background. A doubt is a normal
+  notification, and a question while learning comes without a sound
+  (passive), since it can wait.
+- **Android**: the icon is purple, and the questions come in their own
+  **Pet Recognition** channel, whose sound and importance can be set in the
+  settings of the phone.
+
 ## [0.5.0] - 2026-10-30
 
 Each visit can be seen, even when no animal was found in its picture.

@@ -415,6 +415,9 @@
     "question_learning": {
       "message": "Who was at {source} at {time}? The answer helps tell the pets apart."
     },
+    "question_title": {
+      "message": "Pet Recognition"
+    },
     "question_other": {
       "message": "Other"
     },

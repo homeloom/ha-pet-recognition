@@ -415,6 +415,9 @@
     "question_learning": {
       "message": "Qui était à {source} à {time} ? La réponse aide à reconnaître les animaux."
     },
+    "question_title": {
+      "message": "Pet Recognition"
+    },
     "question_other": {
       "message": "Autre"
     },

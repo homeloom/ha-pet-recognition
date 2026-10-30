@@ -328,9 +328,17 @@ Once a visit has ended, each part of it where no pet could be told becomes
 a question, sent to each phone of the options: "Who was at Feeder at
 08:12?", with the crop of the animal, or the picture itself when no animal
 was found at a source where every picture shows a pet, and three buttons,
-the two likeliest pets and **Other**, since Android shows three. A part of a visit is asked
-about once, and at most two hours after the visit ended, so that a restart
-after a while asks nothing old.
+the two likeliest pets and **Other**, since Android shows three. A part of
+a visit is asked about once, and at most two hours after the visit ended,
+so that a restart after a while asks nothing old.
+
+The questions are grouped together on the phone, with the title **Pet
+Recognition** and a paw icon. On iOS, the icon makes them communication
+notifications, sent by that title, on a purple background; a doubt is a
+normal notification, and a question while learning comes without a sound.
+On Android, the icon is purple, and the questions come in their own **Pet
+Recognition** channel, whose sound and importance are set in the settings
+of the phone.
 
 - **While learning**, when a pet expected at the source has no examples
   yet, every visit is unknown: one question at a time is open per source,

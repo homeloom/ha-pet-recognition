@@ -56,6 +56,7 @@ class Phones:
 
     ids: dict[str, str]
     sent: list[tuple[str, str, dict[str, Any]]] = field(default_factory=list)
+    titles: list[str | None] = field(default_factory=list)
     tried: list[tuple[str, datetime]] = field(default_factory=list)
     failing: set[str] = field(default_factory=set)
     disconnected: set[str] = field(default_factory=set)
@@ -111,8 +112,8 @@ def register_phones(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> Pho
                 for key in ("message", "title", "data")
                 if key in config
             }
-            assert "title" not in rendered
             found.sent.append((name, rendered["message"], rendered["data"]))
+            found.titles.append(rendered.get("title"))
 
     async def platform(hass: HomeAssistant, domain: str, kind: DeviceAutomationType) -> type:
         assert (domain, kind) == ("mobile_app", DeviceAutomationType.ACTION)

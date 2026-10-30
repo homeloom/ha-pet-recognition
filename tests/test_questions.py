@@ -74,6 +74,11 @@ async def test_an_unknown_visit_is_asked_on_each_phone(
     assert data == {
         "tag": f"pet_recognition_{asked.doubt.id}",
         "group": "pet_recognition",
+        # An icon on both platforms, and a doubt is a normal notification on iOS.
+        "notification_icon": "mdi:paw",
+        "color": "#7E57C2",
+        "channel": "Pet Recognition",
+        "push": {"interruption-level": "active"},
         "actions": [
             {"action": f"{question}{PET_B}", "title": "Pet b"},
             {"action": f"{question}{PET_C}", "title": "Pet c"},
@@ -83,6 +88,8 @@ async def test_an_unknown_visit_is_asked_on_each_phone(
     }
     message = f"Who was at Feeder at {local_time(1)}?"
     assert phones.sent == [("Phone 1", message, data), ("Phone 2", message, data)]
+    # A title, which iOS shows as the sender, by the icon.
+    assert phones.titles == ["Pet Recognition"] * 2
     assert asked.sent == tuple(phones.ids.values())
     assert image.startswith(f"/api/pet_recognition/picture/{entry.entry_id}/{asked.crop}?authSig=")
 
@@ -162,6 +169,9 @@ async def test_one_learning_question_at_a_time(
     assert first.choices == (PET_A, PET_B)
     learning = f"Who was at Feeder at {local_time(1)}? The answer helps tell the pets apart."
     assert [message for _name, message, _data in phones.questions()] == [learning] * 2
+    # A question while learning can wait: it comes without a sound on iOS.
+    levels = {data["push"]["interruption-level"] for _name, _message, data in phones.questions()}
+    assert levels == {"passive"}
 
     # Another visit waits for the first question.
     await visit(hass, aioclient_mock, shown, freezer, 30, A)

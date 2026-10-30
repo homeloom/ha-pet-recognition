@@ -70,7 +70,17 @@ CHOICES = 2
 # What an answer starts with, and the choice of none of the pets shown.
 ACTION = "PET_RECOGNITION"
 OTHER = "other"
+# The look of the notifications. Both apps group them by `group`. iOS shows
+# the icon as the sender of a communication notification, named by the
+# title, on the color; Android shows the icon in that color, in its own
+# channel, whose sound and importance the phone's settings set.
 GROUP = "pet_recognition"
+ICON = "mdi:paw"
+COLOR = "#7E57C2"
+CHANNEL = "Pet Recognition"
+# On iOS, a question while learning can wait, so it comes without a sound;
+# a doubt is a normal notification. None is time-sensitive or critical.
+INTERRUPTION_LEVELS = {Kind.UNSURE: "active", Kind.LEARNING: "passive"}
 # The event of the companion apps when a button of a notification is pressed.
 EVENT_ACTION = "mobile_app_notification_action"
 
@@ -274,13 +284,13 @@ class Asker:
         return retry <= now
 
     async def _async_send(self, asked: Asked, now: float) -> None:
-        message, data = await self._notification(asked)
+        title, message, data = await self._notification(asked)
         failed = False
         for phone in asked.phones:
             if phone in asked.sent or phone in self._missing:
                 continue
             try:
-                await async_notify(self._hass, phone, message, data)
+                await async_notify(self._hass, phone, title, message, data)
             except PhoneMissingError as err:
                 _LOGGER.warning("A phone to ask is gone: %s", err)
                 self._missing.add(phone)
@@ -297,8 +307,8 @@ class Asker:
         delay = min(FIRST_RETRY * 2 ** (failures - 1), LAST_RETRY)
         self._retries[asked.doubt.id] = (failures, now + delay)
 
-    async def _notification(self, asked: Asked) -> tuple[str, dict[str, Any]]:
-        """The message and the data of the notification of a question."""
+    async def _notification(self, asked: Asked) -> tuple[str, str, dict[str, Any]]:
+        """The title, the message and the data of the notification of a question."""
         doubt = asked.doubt
         texts = await _texts(self._hass)
         message = texts[f"question_{doubt.kind}"].format(
@@ -315,6 +325,10 @@ class Asker:
         data: dict[str, Any] = {
             "tag": notification_tag(doubt.id),
             "group": GROUP,
+            "notification_icon": ICON,
+            "color": COLOR,
+            "channel": CHANNEL,
+            "push": {"interruption-level": INTERRUPTION_LEVELS[doubt.kind]},
             "actions": actions,
         }
         entry_id = self._entry.entry_id
@@ -326,7 +340,7 @@ class Asker:
             path = FRAME_URL.format(entry_id=entry_id, picture_id=doubt.shown)
         if path is not None:
             data["image"] = signed_picture_url(self._hass, path)
-        return message, data
+        return texts["question_title"], message, data
 
     @callback
     def _schedule(self, now: float) -> None:
@@ -362,5 +376,5 @@ async def _texts(hass: HomeAssistant) -> dict[str, str]:
     prefix = f"component.{DOMAIN}.exceptions."
     return {
         key: translations[f"{prefix}{key}.message"]
-        for key in (*(f"question_{kind}" for kind in Kind), "question_other")
+        for key in (*(f"question_{kind}" for kind in Kind), "question_title", "question_other")
     }

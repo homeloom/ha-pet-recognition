@@ -80,6 +80,7 @@
           "description": "Photos pour l'instant : {count}. Ajoutez des photos où l'animal est seul, sous plusieurs angles et éclairages. D'autres pourront être ajoutées plus tard.",
           "menu_options": {
             "photo": "Téléverser une photo",
+            "folder": "Ajouter les photos d'un dossier de Médias",
             "capture": "Prendre une photo avec une caméra ou une image",
             "finish": "Terminer"
           }
@@ -89,6 +90,7 @@
           "description": "Exemples de {pet} : {count}.",
           "menu_options": {
             "photo": "Téléverser une photo",
+            "folder": "Ajouter les photos d'un dossier de Médias",
             "capture": "Prendre une photo avec une caméra ou une image",
             "remove": "Supprimer des exemples",
             "rename": "Renommer",
@@ -97,10 +99,21 @@
         },
         "photo": {
           "title": "Téléverser une photo de {pet}",
-          "description": "Une photo JPEG, PNG ou WebP où {pet} est le seul animal. Validez sans photo pour revenir en arrière.",
+          "description": "Une photo JPEG, PNG ou WebP où {pet} est le seul animal, ou une archive zip de telles photos. Validez sans photo pour revenir en arrière.",
           "data": {
-            "photo": "Photo"
+            "photo": "Photo ou archive zip"
           }
+        },
+        "folder": {
+          "title": "Ajouter les photos d'un dossier",
+          "description": "Téléversez plusieurs photos d'un coup dans **Médias**, sous **Mes médias**, dans un dossier à part, puis choisissez-le ici. Chaque photo JPEG, PNG ou WebP du dossier où {pet} est le seul animal est ajoutée, sans ses sous-dossiers. Les fichiers restent dans les médias. Validez sans dossier pour revenir en arrière.",
+          "data": {
+            "folder": "Dossier"
+          }
+        },
+        "learned": {
+          "title": "Photos de {pet}",
+          "description": "**Ajoutées ({added}) :** {added_names}\n\n**Presque identiques à un autre exemple ({duplicate}) :** {duplicate_names}\n\n**Pas un seul animal de cette espèce ({no_animal}) :** {no_animal_names}\n\n**Pas une photo JPEG, PNG ou WebP, ou trop grandes ({unreadable}) :** {unreadable_names}\n\n**Non ajoutées : le moteur n'a pas pu les analyser, ou l'animal est complet ({not_added}) :** {not_added_names}\n\nValidez pour continuer."
         },
         "capture": {
           "title": "Prendre une photo de {pet}",
@@ -124,18 +137,24 @@
         }
       },
       "error": {
+        "archive_too_large": "L'archive zip a trop de fichiers, ou elle est trop grande une fois décompressée.",
         "cannot_analyze": "Le moteur n'a pas pu analyser cette photo.",
         "cannot_capture": "Aucune photo n'a pu être prise depuis cette entité.",
         "cannot_connect": "Le moteur est injoignable. Vérifiez qu'il tourne, puis réessayez.",
         "duplicate_picture": "Cette photo est presque identique à un autre exemple.",
         "empty_name": "Saisissez un nom.",
         "engine_busy": "Le moteur est occupé. Réessayez dans un instant.",
+        "folder_not_found": "Ce dossier n'existe plus. Choisissez-en un autre.",
         "no_animal": "Aucun animal de cette espèce n'a été trouvé sur la photo.",
+        "no_media_folder": "Aucun dossier des médias ne contient encore de photos. Téléversez-en d'abord dans **Médias**.",
         "picture_too_large": "La photo est trop grande pour le moteur.",
         "several_animals": "Plusieurs animaux de cette espèce sont sur la photo. Utilisez une photo où l'animal est seul.",
         "too_many_examples": "L'animal a déjà autant d'exemples qu'il peut en garder. Supprimez-en d'abord.",
         "unreadable_picture": "Le moteur ne peut pas lire cette photo. Utilisez une photo JPEG, PNG ou WebP.",
         "upload_failed": "La photo n'a pas pu être lue. Téléversez-la de nouveau."
+      },
+      "progress": {
+        "learning": "Ajout des photos à {pet}, quelques secondes chacune."
       },
       "abort": {
         "entry_not_loaded": "L'intégration n'est pas chargée. Vérifiez qu'elle est configurée, puis réessayez.",

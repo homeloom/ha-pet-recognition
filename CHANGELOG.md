@@ -6,8 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-30
+
+Several photos of a pet can be added at once.
+
 ### Added
 
+- **Add the photos of a media folder**, in the menus of a new pet and of
+  **Change pet**: choose a folder of the media directories, where the
+  media browser uploads several photos at once, and each of its photos is
+  added. The files are only read.
+- A zip archive of photos can be uploaded in the photo field. It is read
+  entry by entry in memory, within bounded entries and size, and each
+  photo is told by its content.
+- The photos of a folder or an archive are added while the form shows its
+  progress, then a summary lists those added and those skipped, with the
+  reason.
 - A brand icon, shown by Home Assistant 2026.3 and later, and by HACS.
 
 ## [0.3.0] - 2026-10-30

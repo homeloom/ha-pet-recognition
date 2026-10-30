@@ -410,6 +410,9 @@
     },
     "unknown_pet": {
       "message": "L'appareil {device_id} n'est pas un animal de cette entrée Pet Recognition."
+    },
+    "unknown_pet_id": {
+      "message": "{pet_id} n'est pas un animal de cette entrée Pet Recognition."
     }
   },
   "issues": {

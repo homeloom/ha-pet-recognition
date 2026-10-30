@@ -3,9 +3,10 @@
 Tell which of your pets appears in pictures from Home Assistant, count their
 visits, and learn from your answers. Everything runs locally.
 
-> **Status: 0.2.** Pets are recognized at their sources, and their visits
+> **Status: 0.3.** Pets are recognized at their sources, and their visits
 > counted per day. When it is unsure, it asks on the phones, and learns
-> from the answers and from the corrections you make.
+> from the answers and from the corrections you make. Dashboards can show
+> the visits and correct them.
 
 ## Setup
 
@@ -168,6 +169,76 @@ visit ended. A single pet teaches the animal, as an answer does (see
 [Questions on the phones](#questions-on-the-phones)). The long-term
 statistics of a past day keep their value: a correction changes the journal,
 the counts of today and the events.
+
+### Dashboards
+
+Two websocket commands serve dashboards, for any user who is logged in.
+
+`pet_recognition/overview` gives the pets, the sources and the visits of a
+period, of every loaded entry. The period is yesterday and today by
+default, or from `start` to `end` (ISO 8601 times; a time without an offset
+is local time). A visit is in it when it goes on at some time of the
+period. Visits older than the days pictures are kept are never given, even
+while they still are.
+
+```json
+{"id": 1, "type": "pet_recognition/overview", "start": "2026-10-29T00:00:00+01:00"}
+```
+
+```json
+{
+  "pets": [
+    {"id": "<pet subentry ID>", "name": "Pet a", "species": "cat",
+     "device_id": "<device ID>"}
+  ],
+  "sources": [
+    {"id": "<source subentry ID>", "name": "Feeder", "kind": "feeder",
+     "pets": ["<pet subentry ID>"], "device_id": "<device ID>",
+     "visit_entity": "event.feeder_visit"}
+  ],
+  "visits": [
+    {"id": "<visit ID>", "source": "<source subentry ID>",
+     "start": "2026-10-29T07:58:12+00:00", "end": "2026-10-29T08:01:40+00:00",
+     "ended": true, "pets": ["<pet subentry ID>"], "other_animal": false,
+     "unsure": false,
+     "picture": "/api/pet_recognition/picture/<entry ID>/<crop ID>?authSig=<signature>"}
+  ]
+}
+```
+
+- `species` is `cat`, `dog` or `bird`, and `kind` one of `feeder`, `water`,
+  `litter_box`, `pet_door` and `other`.
+- A source's `pets` are those expected there: every pet when none was
+  chosen. `visit_entity` is its **Visit** event entity, and `null` when it
+  is not registered.
+- `device_id` is `null` when the device was removed.
+- Visits are sorted by `start`, times are in UTC. `ended` is false while a
+  picture can still join the visit. `pets` are sorted by their key and
+  leave out a pet that was removed. `unsure` says part of the visit is
+  still unknown and was not corrected.
+- `picture` is the crop of the animal that stands for the visit, as a
+  question shows it: the largest animal of the last picture where one is
+  seen. It is a relative URL, signed for the user for 30 minutes, which
+  loads without a header; `null` when no animal was found.
+
+`pet_recognition/assign` corrects a visit as the **Assign visit** action
+does, for administrators and for any user allowed to control the source's
+**Correct last visit**. It takes the `visit_id`, the `pets` by their
+subentry IDs (none says it is unknown), and `other_animal`, and answers
+with the visit as it is now, as the overview gives it.
+
+```json
+{"id": 2, "type": "pet_recognition/assign", "visit_id": "<visit ID>",
+ "pets": ["<pet subentry ID>"], "other_animal": false}
+```
+
+```json
+{"visit": {"id": "<visit ID>", "source": "<source subentry ID>", "...": "..."}}
+```
+
+An unknown visit or pet fails with the `home_assistant_error` code and
+the translation keys `unknown_visit` and `unknown_pet_id`; a user who may
+not control the source gets `unauthorized`.
 
 ### Pictures kept
 

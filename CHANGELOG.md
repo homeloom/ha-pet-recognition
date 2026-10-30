@@ -22,6 +22,7 @@ Several photos of a pet can be added at once.
 - The photos of a folder or an archive are added while the form shows its
   progress, then a summary lists those added and those skipped, with the
   reason.
+- A brand icon, shown by Home Assistant 2026.3 and later, and by HACS.
 
 ## [0.3.0] - 2026-10-30
 

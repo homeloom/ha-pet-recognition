@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-30
+
+The picture of a question shows on the phones again.
+
+### Fixed
+
+- The picture of a question failed to load on the phones, with an error
+  404: the companion apps add its relative URL to the server's as a path,
+  so its signature reached Home Assistant as part of the picture's name.
+  It is now left out, and the phone's own sign-in is used.
+
 ## [0.4.0] - 2026-10-30
 
 Several photos of a pet can be added at once.

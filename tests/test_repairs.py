@@ -48,7 +48,7 @@ async def test_a_renamed_entity_is_followed(
         aioclient_mock,
         shown,
         pet(PET_A),
-        source(FEEDER, "camera.garden", trigger=MOTION),
+        source(FEEDER, "camera.garden", trigger=MOTION, meal_pictures=[FEEDER]),
         source("image.bowl", title="Bowl"),
     )
     registry = er.async_get(hass)
@@ -61,6 +61,7 @@ async def test_a_renamed_entity_is_followed(
     )
     assert feeder.data["entities"] == ["image.kitchen_feeder", "camera.garden"]
     assert feeder.data["trigger"] == "binary_sensor.kitchen_motion"
+    assert feeder.data["meal_pictures"] == ["image.kitchen_feeder"]
     assert bowl.data["entities"] == ["image.bowl"]
     # The entry was loaded again, and follows the new name.
     await show(hass, shown, b"first picture", 1, entity_id="image.kitchen_feeder")
@@ -132,7 +133,12 @@ async def test_the_repair_chooses_the_entities_of_the_source(
         aioclient_mock,
         shown,
         pet(PET_A),
-        source(FEEDER, "camera.gone", trigger="binary_sensor.gone"),
+        source(
+            FEEDER,
+            "camera.gone",
+            trigger="binary_sensor.gone",
+            meal_pictures=[FEEDER, "camera.gone"],
+        ),
         source("image.bowl", title="Bowl"),
     )
     result = await fix(hass, entry)
@@ -169,6 +175,8 @@ async def test_the_repair_chooses_the_entities_of_the_source(
         [FEEDER, "camera.patio"],
         MOTION,
     )
+    # The meal pictures that are gone are left out.
+    assert subentry.data["meal_pictures"] == [FEEDER]
 
 
 async def test_a_repair_without_cameras_keeps_the_trigger(

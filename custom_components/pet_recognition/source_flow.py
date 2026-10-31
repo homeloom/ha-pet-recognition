@@ -39,6 +39,7 @@ from .const import (
     CONF_INTERVAL,
     CONF_KIND,
     CONF_LATE,
+    CONF_MEAL_PICTURES,
     CONF_PETS,
     CONF_TRIGGER,
     DEFAULT_FRAMES,
@@ -82,6 +83,13 @@ def entity_errors(entry: ConfigEntry, entities: list[str], mine: str | None) -> 
     }
     if taken.intersection(entities):
         return {CONF_ENTITIES: "entity_in_use"}
+    return {}
+
+
+def meal_errors(entities: list[str], meal_pictures: list[str]) -> dict[str, str]:
+    """The pictures that mean a meal are some of the source's own."""
+    if set(meal_pictures) - set(entities):
+        return {CONF_MEAL_PICTURES: "meal_picture_not_watched"}
     return {}
 
 
@@ -132,6 +140,7 @@ class SourceFlow(ConfigSubentryFlow):
         camera = bool(cameras(self._entities))
         errors: dict[str, str] = {}
         if user_input is not None:
+            # The selector keeps the meal pictures among the entities.
             errors = self._check_trigger(self._entities, user_input)
             if not errors:
                 return self.async_create_entry(
@@ -152,7 +161,7 @@ class SourceFlow(ConfigSubentryFlow):
         return self.async_show_form(
             step_id="details",
             data_schema=self.add_suggested_values_to_schema(
-                self._schema(camera=camera), user_input or defaults
+                self._schema(self._entities, camera=camera), user_input or defaults
             ),
             description_placeholders={"source": self._name},
             errors=errors,
@@ -168,7 +177,11 @@ class SourceFlow(ConfigSubentryFlow):
             name = user_input[CONF_NAME].strip()
             self._kind = user_input[CONF_KIND]
             entities = list(dict.fromkeys(user_input.get(CONF_ENTITIES) or []))
-            errors = self._check_entities(entities) or self._check_trigger(entities, user_input)
+            errors = (
+                self._check_entities(entities)
+                or self._check_trigger(entities, user_input)
+                or self._check_meals(entities, user_input)
+            )
             if not name:
                 errors[CONF_NAME] = "empty_name"
             if not errors:
@@ -182,6 +195,7 @@ class SourceFlow(ConfigSubentryFlow):
             CONF_ENTITIES: data[CONF_ENTITIES],
             CONF_PETS: [key for key in data[CONF_PETS] if key in pets(self._get_entry())],
             CONF_ASK_WHEN_UNSURE: data.get(CONF_ASK_WHEN_UNSURE, True),
+            CONF_MEAL_PICTURES: data.get(CONF_MEAL_PICTURES, []),
             CONF_CAMERA: {
                 CONF_TRIGGER: data[CONF_TRIGGER],
                 CONF_FRAMES: data[CONF_FRAMES],
@@ -198,7 +212,9 @@ class SourceFlow(ConfigSubentryFlow):
                 vol.Required(CONF_NAME): TextSelector(),
                 vol.Required(CONF_KIND): KIND_SELECTOR,
                 vol.Required(CONF_ENTITIES): ENTITY_SELECTOR,
-                **self._schema(camera=True, collapsed=not cameras(data[CONF_ENTITIES])).schema,
+                **self._schema(
+                    data[CONF_ENTITIES], camera=True, collapsed=not cameras(data[CONF_ENTITIES])
+                ).schema,
             }
         )
         return self.async_show_form(
@@ -207,7 +223,7 @@ class SourceFlow(ConfigSubentryFlow):
             errors=errors,
         )
 
-    def _schema(self, *, camera: bool, collapsed: bool = False) -> vol.Schema:
+    def _schema(self, entities: list[str], *, camera: bool, collapsed: bool = False) -> vol.Schema:
         options = [
             SelectOptionDict(value=key, label=subentry.title)
             for key, subentry in pets(self._get_entry()).items()
@@ -217,6 +233,10 @@ class SourceFlow(ConfigSubentryFlow):
                 SelectSelectorConfig(options=options, multiple=True)
             ),
             vol.Required(CONF_ASK_WHEN_UNSURE, default=True): BooleanSelector(),
+            # Among the source's own entities.
+            vol.Optional(CONF_MEAL_PICTURES): EntitySelector(
+                EntitySelectorConfig(include_entities=list(entities), multiple=True)
+            ),
         }
         if camera:
             fields[vol.Required(CONF_CAMERA)] = section(
@@ -246,6 +266,10 @@ class SourceFlow(ConfigSubentryFlow):
         return entity_errors(self._get_entry(), entities, mine)
 
     @staticmethod
+    def _check_meals(entities: list[str], user_input: dict[str, Any]) -> dict[str, str]:
+        return meal_errors(entities, user_input.get(CONF_MEAL_PICTURES) or [])
+
+    @staticmethod
     def _check_trigger(entities: list[str], user_input: dict[str, Any]) -> dict[str, str]:
         return trigger_errors(entities, user_input.get(CONF_CAMERA, {}).get(CONF_TRIGGER))
 
@@ -257,6 +281,7 @@ class SourceFlow(ConfigSubentryFlow):
             CONF_ENTITIES: entities,
             CONF_PETS: list(user_input.get(CONF_PETS, [])),
             CONF_ASK_WHEN_UNSURE: bool(user_input[CONF_ASK_WHEN_UNSURE]),
+            CONF_MEAL_PICTURES: list(dict.fromkeys(user_input.get(CONF_MEAL_PICTURES) or [])),
             CONF_GAP: int(advanced[CONF_GAP]),
             CONF_LATE: int(advanced[CONF_LATE]),
             CONF_EVERY_PICTURE: bool(advanced[CONF_EVERY_PICTURE]),

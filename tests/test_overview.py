@@ -27,7 +27,7 @@ from custom_components.pet_recognition.examples import Origin
 from .answers import URL, animal, embedding
 from .asking import PET_C, UNSURE, B, Phones, asking, visit
 from .test_correcting import SELECT, device, learned
-from .test_counts import come
+from .test_counts import ENDS, A, come, eat, meal_feeder, until
 from .watching import FEEDER, PET_A, PET_B, START, Shown, journal, pet, settle, source, source_id
 
 Ask = Callable[..., Awaitable[dict[str, Any]]]
@@ -151,6 +151,7 @@ async def test_the_overview(
             "pets": [pets[PET_B], pets[PET_C]],
             "device_id": device(hass, entry, feeder),
             "visit_entity": "event.feeder_visit",
+            "counts_meals": False,
         }
     ]
     visits = result["visits"]
@@ -165,6 +166,7 @@ async def test_the_overview(
             "pets": [],
             "other_animal": False,
             "unsure": True,
+            "meal": None,
         },
         {
             "id": of_b.id,
@@ -175,6 +177,7 @@ async def test_the_overview(
             "pets": [pets[PET_B]],
             "other_animal": False,
             "unsure": False,
+            "meal": None,
         },
         {
             "id": going_on.id,
@@ -185,6 +188,7 @@ async def test_the_overview(
             "pets": [],
             "other_animal": False,
             "unsure": True,
+            "meal": None,
         },
     ]
 
@@ -317,6 +321,7 @@ async def test_assign(
         "pets": [pets[PET_A]],
         "other_animal": False,
         "unsure": False,
+        "meal": None,
     }
     await settle(hass)
     assert (unsure.pets, unsure.corrected) == ((PET_A,), True)
@@ -398,3 +403,26 @@ async def test_assign_is_for_who_controls_the_source(
     assert answer["success"]
     await settle(hass)
     assert unsure.corrected
+
+
+async def test_the_overview_tells_the_meals(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    shown: Shown,
+    freezer: FrozenDateTimeFactory,
+    ask: Ask,
+) -> None:
+    entry = await meal_feeder(hass, aioclient_mock, shown, freezer)
+    await come(hass, aioclient_mock, shown, freezer, 1, animal(embedding=A))
+    await eat(hass, aioclient_mock, shown, freezer, 2, animal(embedding=A))
+    await come(hass, aioclient_mock, shown, freezer, 20, animal(embedding=A))
+    await until(hass, freezer, START + timedelta(minutes=20) + ENDS)
+    answer = await ask("overview")
+    assert answer["success"]
+    result = answer["result"]
+    assert [found["counts_meals"] for found in result["sources"]] == [True]
+    assert [found["meal"] for found in result["visits"]] == [True, False]
+    came_by = journal(entry).of(source_id(entry))[-1]
+    answer = await ask("assign", visit_id=came_by.id, pets=[])
+    assert answer["success"]
+    assert answer["result"]["visit"]["meal"] is False

@@ -98,6 +98,13 @@ arrive (2 minutes; cloud devices may need more), and whether every picture
 shows a pet, which is on by default for a feeder or a litter box without a
 camera.
 
+A feeder often shows two pictures: one of each visit, and one of each
+meal. Choose the second as the source's **meal pictures**, among its own
+entities: a visit is then a meal only when one of its pictures comes from
+them, and the pets count per meal instead of per visit (see
+[Visits and counts](#visits-and-counts)). Nothing else is stored, so the
+counts of the day follow at once when the meal pictures change.
+
 Each new picture of the image entities is sent to the engine, oldest first,
 one at a time. The picture an entity shows when its source is added is not
 new, and neither is a picture the source already has: an entity's state,
@@ -150,6 +157,11 @@ box. A visit ends when no picture can join it any more, the gap and the
 lateness of pictures after its last picture. Each pet counts once per
 visit, even when two pets take turns.
 
+At a source with meal pictures, a pet counts only in the visits that are
+meals, those with a meal picture. A meal longer than the gap, whose meal
+picture comes after it, splits into two visits: only the one with the
+meal picture is a meal, so the meal counts once.
+
 Each source's device then has:
 
 - **Visits today**: the visits that ended among those that started today,
@@ -158,7 +170,8 @@ Each source's device then has:
   and **<pet> visits today** elsewhere.
 - **Visit**, an event entity that announces `visit_ended` once for each
   visit, with `visit_id`, `pets` (their names), `other_animal`, `unsure`
-  (a part of the visit is still unknown), `start`, `end` and `pictures`,
+  (a part of the visit is still unknown), `meal` (whether it was a meal,
+  `null` at a source without meal pictures), `start`, `end` and `pictures`,
   and `visit_corrected`, with the same data, each time a correction
   changes a visit that already ended. Use it in automations, such as a
   notification when a pet ate.
@@ -224,13 +237,13 @@ while they still are.
   "sources": [
     {"id": "<source subentry ID>", "name": "Feeder", "kind": "feeder",
      "pets": ["<pet subentry ID>"], "device_id": "<device ID>",
-     "visit_entity": "event.feeder_visit"}
+     "visit_entity": "event.feeder_visit", "counts_meals": true}
   ],
   "visits": [
     {"id": "<visit ID>", "source": "<source subentry ID>",
      "start": "2026-10-29T07:58:12+00:00", "end": "2026-10-29T08:01:40+00:00",
      "ended": true, "pets": ["<pet subentry ID>"], "other_animal": false,
-     "unsure": false,
+     "unsure": false, "meal": true,
      "picture": "/api/pet_recognition/picture/<entry ID>/<crop ID>?authSig=<signature>"}
   ]
 }
@@ -240,12 +253,13 @@ while they still are.
   `litter_box`, `pet_door` and `other`.
 - A source's `pets` are those expected there: every pet when none was
   chosen. `visit_entity` is its **Visit** event entity, and `null` when it
-  is not registered.
+  is not registered. `counts_meals` says it has meal pictures.
 - `device_id` is `null` when the device was removed.
 - Visits are sorted by `start`, times are in UTC. `ended` is false while a
   picture can still join the visit. `pets` are sorted by their key and
   leave out a pet that was removed. `unsure` says part of the visit is
-  still unknown and was not corrected.
+  still unknown and was not corrected. `meal` says the visit was a meal,
+  and is `null` at a source without meal pictures.
 - `picture` is the crop of the animal that stands for the visit, as a
   question shows it: the largest animal of the last picture where one is
   seen, or the picture itself when no animal was found and the source keeps

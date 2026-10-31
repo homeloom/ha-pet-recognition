@@ -88,6 +88,7 @@ def ws_overview(
                     "name": subentry.title,
                     "kind": subentry.data[CONF_KIND],
                     "pets": [ids[key] for key in source_settings(entry, subentry).pets],
+                    "counts_meals": entry.runtime_data.history.counts_meals(source_id),
                     "device_id": devices.get(source_id),
                     "visit_entity": registry.async_get_entity_id(
                         "event", DOMAIN, f"{entry.entry_id}_{source_id}_visit"
@@ -183,6 +184,7 @@ def _visit(
         "pets": [ids[pet] for pet in visit.pets if pet in ids],
         "other_animal": OTHER_ANIMAL in visit.pets,
         "unsure": visit.unsure,
+        "meal": visit.meal if entry.runtime_data.history.counts_meals(visit.source) else None,
         "picture": None if path is None else signed_url(hass, path, connection.refresh_token_id),
     }
 

@@ -61,5 +61,6 @@ class VisitEvent(EventEntity):
 
     @callback
     def _async_announced(self, kind: str, visit: Visit) -> None:
-        self._trigger_event(kind, visit_data(visit, self._titles))
+        meals = self._counter.counts_meals(self._source)
+        self._trigger_event(kind, visit_data(visit, self._titles, meals))
         self.async_write_ha_state()

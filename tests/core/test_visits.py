@@ -30,6 +30,7 @@ def pic(
     corrected: bool = False,
     group_id: str = "",
     source: str = "feeder",
+    meal: bool = False,
 ) -> Picture:
     """A picture taken `minutes` after START."""
     return Picture(
@@ -41,6 +42,7 @@ def pic(
         resembles,
         corrected,
         group_id,
+        meal,
     )
 
 
@@ -259,6 +261,30 @@ def test_count_counts_every_visit_and_each_pet_once_per_visit() -> None:
     assert counted.visits == 3
     assert counted.pets == {"pet_a": 2, "pet_b": 1}
     assert count([], date(2026, 10, 11), ZONE).visits == 0
+
+
+def test_with_meals_the_pets_count_only_in_the_visits_that_are_meals() -> None:
+    visits = group(
+        [
+            # A meal: the picture of the meal comes after the visit's.
+            pic("a", 0, ("pet_a",)),
+            pic("b", 1, ("pet_a",), meal=True),
+            # A pet that only came by.
+            pic("c", 30, ("pet_b",)),
+            # A long meal: its picture comes after the gap, in a visit of
+            # its own, which alone is the meal.
+            pic("d", 60, ("pet_a",)),
+            pic("e", 66, ("pet_a",), meal=True),
+        ],
+        SETTINGS,
+    )
+    assert [visit.meal for visit in visits] == [True, False, False, True]
+    day = date(2026, 10, 11)
+    counted = count(visits, day, ZONE, meals=True)
+    assert counted.visits == 4
+    assert counted.pets == {"pet_a": 2}
+    # Without meals, every visit counts.
+    assert count(visits, day, ZONE).pets == {"pet_a": 3, "pet_b": 1}
 
 
 def test_the_pets_of_a_picture_are_sorted_once() -> None:

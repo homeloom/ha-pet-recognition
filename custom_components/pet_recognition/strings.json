@@ -187,11 +187,13 @@
           "description": "Choose the pets of {source}. Pictures already shown are not analyzed, only new ones.",
           "data": {
             "pets": "Expected pets",
-            "ask_when_unsure": "Ask when unsure"
+            "ask_when_unsure": "Ask when unsure",
+            "meal_pictures": "Meal pictures"
           },
           "data_description": {
             "pets": "The pets that may appear at this source. None chosen means every pet.",
-            "ask_when_unsure": "Once every pet has examples, ask the phones of the options who it was when a visit of this source stays unknown."
+            "ask_when_unsure": "Once every pet has examples, ask the phones of the options who it was when a visit of this source stays unknown.",
+            "meal_pictures": "The entities of the source whose new pictures each mean a meal, such as a feeder's picture of its last meal. With them, pets count per meal instead of per visit."
           },
           "sections": {
             "camera": {
@@ -230,12 +232,14 @@
             "kind": "Kind",
             "entities": "Image or camera entities",
             "pets": "Expected pets",
-            "ask_when_unsure": "Ask when unsure"
+            "ask_when_unsure": "Ask when unsure",
+            "meal_pictures": "Meal pictures"
           },
           "data_description": {
             "entities": "Each new picture of an image entity is analyzed. A camera takes pictures when its trigger fires.",
             "pets": "The pets that may appear at this source. None chosen means every pet.",
-            "ask_when_unsure": "Once every pet has examples, ask the phones of the options who it was when a visit of this source stays unknown."
+            "ask_when_unsure": "Once every pet has examples, ask the phones of the options who it was when a visit of this source stays unknown.",
+            "meal_pictures": "The entities of the source whose new pictures each mean a meal, such as a feeder's picture of its last meal. With them, pets count per meal instead of per visit."
           },
           "sections": {
             "camera": {
@@ -271,6 +275,7 @@
       "error": {
         "empty_name": "Enter a name.",
         "entity_in_use": "One of these entities is already used by another source.",
+        "meal_picture_not_watched": "Choose the meal pictures among the entities of the source.",
         "no_entity": "Choose at least one image or camera entity.",
         "trigger_needed": "Choose a trigger for the cameras."
       },

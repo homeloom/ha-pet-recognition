@@ -51,6 +51,7 @@ from .const import (
     CONF_GAP,
     CONF_INTERVAL,
     CONF_LATE,
+    CONF_MEAL_PICTURES,
     CONF_PETS,
     CONF_SPECIES,
     CONF_TRIGGER,
@@ -142,6 +143,8 @@ def source_settings(entry: ConfigEntry, subentry: ConfigSubentry) -> SourceSetti
             gap=data[CONF_GAP] * 60,
             late=data[CONF_LATE] * 60,
             every_picture_shows_a_pet=data[CONF_EVERY_PICTURE],
+            # Sources added before meals have none.
+            meal_pictures=frozenset(data.get(CONF_MEAL_PICTURES, [])),
         ),
         trigger=data[CONF_TRIGGER],
         frames=data[CONF_FRAMES],

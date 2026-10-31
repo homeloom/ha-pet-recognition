@@ -234,6 +234,7 @@ async def test_assign_visit(
             "pets": ["Pet b"],
             "other_animal": True,
             "unsure": False,
+            "meal": None,
             "start": (START + timedelta(minutes=1)).isoformat(),
             "end": (START + timedelta(minutes=1)).isoformat(),
             "pictures": 1,

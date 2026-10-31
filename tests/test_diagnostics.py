@@ -42,7 +42,7 @@ async def test_the_diagnostics_of_a_connected_engine(
         "integration_version": VERSION,
         "state": "loaded",
         "engine": {
-            "version": "0.6.0",
+            "version": "0.7.0",
             "model": MODEL,
             "species": ["bird", "cat", "dog"],
             "max_bytes": 20 * 1024 * 1024,

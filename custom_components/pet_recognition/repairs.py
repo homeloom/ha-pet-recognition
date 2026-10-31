@@ -21,7 +21,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.start import async_at_started
 
-from .const import CONF_ENTITIES, CONF_TRIGGER, DOMAIN
+from .const import CONF_ENTITIES, CONF_MEAL_PICTURES, CONF_TRIGGER, DOMAIN
 from .source_flow import ENTITY_SELECTOR, TRIGGER_SELECTOR, entity_errors, trigger_errors
 from .sources import cameras, sources
 
@@ -68,11 +68,19 @@ def _async_rename(hass: HomeAssistant, entry: ConfigEntry, old: str, new: str) -
             continue
         entities = [new if entity_id == old else entity_id for entity_id in data[CONF_ENTITIES]]
         trigger = new if data[CONF_TRIGGER] == old else data[CONF_TRIGGER]
+        meals = [
+            new if entity_id == old else entity_id for entity_id in data.get(CONF_MEAL_PICTURES, [])
+        ]
         # Saving the source reloads the entry, which follows the new name.
         hass.config_entries.async_update_subentry(
             entry,
             subentry,
-            data={**data, CONF_ENTITIES: list(dict.fromkeys(entities)), CONF_TRIGGER: trigger},
+            data={
+                **data,
+                CONF_ENTITIES: list(dict.fromkeys(entities)),
+                CONF_TRIGGER: trigger,
+                CONF_MEAL_PICTURES: list(dict.fromkeys(meals)),
+            },
         )
 
 
@@ -177,6 +185,12 @@ class SourceEntitiesFlow(RepairsFlow):
                         # Kept when the cameras go and none is chosen, as the
                         # source flow does.
                         CONF_TRIGGER: trigger or data[CONF_TRIGGER],
+                        # Only among the entities left.
+                        CONF_MEAL_PICTURES: [
+                            entity_id
+                            for entity_id in data.get(CONF_MEAL_PICTURES, [])
+                            if entity_id in entities
+                        ],
                     },
                 )
                 return self.async_create_entry(data={})

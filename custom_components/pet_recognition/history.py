@@ -7,7 +7,7 @@ leaves them to repair.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 
 from homeassistant.core import CALLBACK_TYPE, callback
 
@@ -15,8 +15,9 @@ from .core.visits import Picture, Visit, VisitSettings, group
 from .journal import Journal, Record
 
 
-def picture(record: Record) -> Picture:
-    """What the grouping of visits needs to know of a record."""
+def picture(record: Record, meal_pictures: Collection[str] = ()) -> Picture:
+    """What the grouping of visits needs to know of a record, taken from
+    an entity of `meal_pictures` or not."""
     return Picture(
         id=record.id,
         source=record.source,
@@ -26,6 +27,7 @@ def picture(record: Record) -> Picture:
         resembles=record.resembles,
         corrected=record.corrected,
         group=record.group,
+        meal=record.entity in meal_pictures,
     )
 
 
@@ -82,11 +84,16 @@ class History:
     def visits(self, source: str) -> list[Visit]:
         """The visits of a source, oldest first."""
         if (visits := self._visits.get(source)) is None:
-            records = self._journal.of(source)
+            settings = self._settings[source]
             visits = self._visits[source] = group(
-                (picture(record) for record in records), self._settings[source]
+                (picture(record, settings.meal_pictures) for record in self._journal.of(source)),
+                settings,
             )
         return visits
+
+    def counts_meals(self, source: str) -> bool:
+        """Whether some pictures of a source mean a meal, so its pets count per meal."""
+        return bool(self._settings[source].meal_pictures)
 
     def ended(self, source: str, now: float) -> list[Visit]:
         """The visits of a source that no picture can join any more, oldest first."""

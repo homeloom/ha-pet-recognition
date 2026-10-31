@@ -151,6 +151,7 @@ async def test_visits_count_once_they_ended(
         "pets": ["Pet a", "Pet b"],
         "other_animal": False,
         "unsure": False,
+        "meal": None,
         "start": (START + timedelta(minutes=1)).isoformat(),
         "end": (START + timedelta(minutes=2)).isoformat(),
         "pictures": 2,
@@ -265,3 +266,76 @@ async def test_counts_of_pets_no_longer_expected_are_removed(
     assert registry.async_get("sensor.feeder_pet_b_visits_today") is None
     assert hass.states.get("sensor.feeder_pet_a_visits_today") is not None
     assert registry.async_get(VISITS) is not None
+
+
+MEAL = "image.feeder_meal"
+
+
+async def meal_feeder(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    shown: Shown,
+    freezer: FrozenDateTimeFactory,
+) -> MockConfigEntry:
+    """Two pets, and a feeder with a picture of each visit and one of each meal."""
+    shown[MEAL] = b"first meal"
+    hass.states.async_set(MEAL, START.isoformat())
+    return await two_pets(
+        hass, aioclient_mock, shown, freezer, entities=[FEEDER, MEAL], meal_pictures=[MEAL]
+    )
+
+
+async def eat(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    shown: Shown,
+    freezer: FrozenDateTimeFactory,
+    minutes: float,
+    *animals: dict[str, object],
+) -> None:
+    """At `minutes` after the start, the feeder takes a picture of a meal of `animals`."""
+    taken = START + timedelta(minutes=minutes)
+    freezer.move_to(taken)
+    engine(aioclient_mock, json=analysis(*animals))
+    shown[MEAL] = f"meal {minutes}".encode()
+    hass.states.async_set(MEAL, taken.isoformat())
+    await settle(hass)
+
+
+async def test_with_meal_pictures_the_pets_count_per_meal(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    shown: Shown,
+    freezer: FrozenDateTimeFactory,
+    announced: list[dict[str, Any]],
+) -> None:
+    entry = await meal_feeder(hass, aioclient_mock, shown, freezer)
+    # Pet A eats; Pet B only comes by.
+    await come(hass, aioclient_mock, shown, freezer, 1, animal(embedding=A))
+    await eat(hass, aioclient_mock, shown, freezer, 2, animal(embedding=A))
+    await come(hass, aioclient_mock, shown, freezer, 20, animal(embedding=B))
+    # A long meal of Pet A: its picture comes after the gap, so it is a
+    # visit of its own, and the meal counts once.
+    await come(hass, aioclient_mock, shown, freezer, 40, animal(embedding=A))
+    await eat(hass, aioclient_mock, shown, freezer, 46, animal(embedding=A))
+    await until(hass, freezer, START + timedelta(minutes=46) + ENDS)
+    assert value(hass, VISITS) == ("4", 0)
+    assert value(hass, MEALS_A) == ("2", 0)
+    assert value(hass, MEALS_B) == ("0", 0)
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+    assert diagnostics["sources"][0]["meal_pictures"] == 1
+    assert [(item["pets"], item["meal"]) for item in announced] == [
+        (["Pet a"], True),
+        (["Pet b"], False),
+        (["Pet a"], False),
+        (["Pet a"], True),
+    ]
+
+    # Without meal pictures, every visit counts again.
+    feeder = entry.subentries[source_id(entry)]
+    hass.config_entries.async_update_subentry(
+        entry, feeder, data={**feeder.data, "meal_pictures": []}
+    )
+    await settle(hass)
+    assert value(hass, MEALS_A) == ("3", 0)
+    assert value(hass, MEALS_B) == ("1", 0)

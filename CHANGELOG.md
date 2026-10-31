@@ -6,6 +6,25 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-31
+
+A feeder can count its meals, not every visit.
+
+### Added
+
+- Each source can have **meal pictures**, chosen among its own entities,
+  such as a feeder's picture of its last meal. A visit with one of them is
+  a meal, and the **<pet> meals today** counts then count only the meals.
+- `meal` in `visit_ended`, `visit_corrected`, the overview and the
+  answers of **Assign visit**: whether the visit was a meal, `null` at a
+  source without meal pictures. The overview's sources have
+  `counts_meals`, and the diagnostics the number of meal pictures.
+
+### Changed
+
+- Renaming an entity, or replacing one that is gone, keeps the meal
+  pictures among the source's entities.
+
 ## [0.6.0] - 2026-10-31
 
 The questions on the phones look their part on iOS and Android.

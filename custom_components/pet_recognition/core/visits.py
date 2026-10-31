@@ -12,6 +12,10 @@ of them. A picture without any animal in sight, such as a head in the bowl,
 follows the nearest picture where something is seen. A picture corrected
 to unknown is a screen: nothing passes through it.
 
+A source can say which of its pictures mean a meal, such as a feeder's
+picture of its last meal: a visit with one of them is a meal, and the
+pets are then counted per meal instead of per visit.
+
 Counts are always computed again from the pictures, so a correction never
 leaves a counter to repair.
 """
@@ -43,6 +47,8 @@ class Picture:
     resembles: str | None = None
     corrected: bool = False
     group: str = ""
+    # Taken from an entity whose pictures mean a meal.
+    meal: bool = False
 
     def __post_init__(self) -> None:
         self.pets = tuple(sorted(set(self.pets)))
@@ -66,12 +72,14 @@ class VisitSettings:
     `late`: how long pictures may arrive after they were taken, which delays
     the end of a visit. `every_picture_shows_a_pet`: the source only takes
     pictures of a pet (a feeder's meal pictures), so a visit where no animal
-    is found still counts, as unknown.
+    is found still counts, as unknown. `meal_pictures`: the entities whose
+    pictures mean a meal; when there are any, the pets count per meal.
     """
 
     gap: float = 300
     late: float = 120
     every_picture_shows_a_pet: bool = False
+    meal_pictures: frozenset[str] = frozenset()
 
     def __post_init__(self) -> None:
         if self.gap <= 0 or self.late < 0:
@@ -158,6 +166,11 @@ class Visit:
     def pets(self) -> tuple[str, ...]:
         """Every pet of the visit, sorted."""
         return tuple(sorted({pet for run in self.runs for pet in run.pets}))
+
+    @property
+    def meal(self) -> bool:
+        """A picture of the visit means a meal."""
+        return any(picture.meal for picture in self.pictures)
 
     @property
     def unsure(self) -> bool:
@@ -265,18 +278,21 @@ class DayCount:
     pets: dict[str, int] = field(default_factory=dict)
 
 
-def count(visits: Iterable[Visit], day: date, zone: tzinfo) -> DayCount:
+def count(visits: Iterable[Visit], day: date, zone: tzinfo, meals: bool = False) -> DayCount:
     """How many visits started on `day`, in the time zone `zone`.
 
     A pet counts once per visit, even when it comes back to the bowl after
-    another pet in the same visit. The other animal counts like a pet, so
-    its visits can be shown too.
+    another pet in the same visit, and with `meals`, only in the visits
+    that are meals. The other animal counts like a pet, so its visits can
+    be shown too.
     """
     counted = DayCount()
     for visit in visits:
         if visit.day(zone) != day:
             continue
         counted.visits += 1
+        if meals and not visit.meal:
+            continue
         for pet in visit.pets:
             counted.pets[pet] = counted.pets.get(pet, 0) + 1
     return counted

@@ -35,13 +35,16 @@ VISIT_ENDED = "visit_ended"
 VISIT_CORRECTED = "visit_corrected"
 
 
-def visit_data(visit: Visit, titles: dict[str, str]) -> dict[str, Any]:
-    """What is said of a visit: its pets by name, whether it is unsure, its times."""
+def visit_data(visit: Visit, titles: dict[str, str], meals: bool) -> dict[str, Any]:
+    """What is said of a visit: its pets by name, whether it is unsure, its
+    times, and at a source whose pictures tell the meals (`meals`), whether
+    it is a meal."""
     return {
         "visit_id": visit.id,
         "pets": sorted(titles[pet] for pet in visit.pets if pet in titles),
         "other_animal": OTHER_ANIMAL in visit.pets,
         "unsure": visit.unsure,
+        "meal": visit.meal if meals else None,
         "start": _time(visit.start),
         "end": _time(visit.end),
         "pictures": len(visit.pictures),
@@ -104,10 +107,16 @@ class VisitCounter:
         announcers.append(announce)
         return lambda: announcers.remove(announce)
 
+    def counts_meals(self, source: str) -> bool:
+        """Whether the pets of a source count per meal."""
+        return self._history.counts_meals(source)
+
     def day(self, source: str, day: date) -> DayCount:
         """The visits of a source that ended, of those that started on `day`."""
         ended = self._history.ended(source, dt_util.utcnow().timestamp())
-        return count(ended, day, dt_util.get_default_time_zone())
+        return count(
+            ended, day, dt_util.get_default_time_zone(), self._history.counts_meals(source)
+        )
 
     def today(self, source: str) -> DayCount:
         """The visits of a source that ended, of those that started today."""

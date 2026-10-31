@@ -90,6 +90,7 @@ async def async_get_config_entry_diagnostics(
                 ),
                 "pending": len(journal.pending(source_id)),
                 "visits_today": counter.today(source_id).visits,
+                "meal_pictures": len(settings.visits.meal_pictures),
                 "ask_when_unsure": settings.ask_when_unsure,
                 "questions": dict(
                     sorted(

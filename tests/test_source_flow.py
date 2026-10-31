@@ -8,7 +8,7 @@ import pytest
 import voluptuous as vol
 from homeassistant.config_entries import SOURCE_USER, ConfigSubentryData
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
@@ -93,8 +93,11 @@ async def test_a_source_of_images_is_added(
     assert (result["type"], result["step_id"]) == (FlowResultType.FORM, "details")
     assert result["description_placeholders"] == {"source": "Feeder"}
     # Without a camera, there is nothing to trigger.
-    assert fields(result) == ["pets", "ask_when_unsure", "advanced"]
+    assert fields(result) == ["pets", "ask_when_unsure", "meal_pictures", "advanced"]
     assert suggested(result, "ask_when_unsure") is True
+    # The meal pictures are chosen among the source's own entities.
+    meals = result["data_schema"].schema["meal_pictures"].config
+    assert meals["include_entities"] == ["image.feeder", "image.bowl"]
     assert advanced(result) == ADVANCED
     pets = result["data_schema"].schema["pets"].config["options"]
     assert pets == [{"value": "a" * 32, "label": "Pet A"}, {"value": "b" * 32, "label": "Pet B"}]
@@ -115,6 +118,7 @@ async def test_a_source_of_images_is_added(
         "entities": ["image.feeder", "image.bowl"],
         "pets": ["a" * 32],
         "ask_when_unsure": True,
+        "meal_pictures": [],
         "gap": 10,
         "late": 0,
         "every_picture_shows_a_pet": False,
@@ -129,7 +133,7 @@ async def test_a_source_with_a_camera_needs_a_trigger(
 ) -> None:
     entry = await set_up(hass, aioclient_mock)
     result = await start(hass, entry, "feeder", "camera.garden", "image.feeder")
-    assert fields(result) == ["pets", "ask_when_unsure", "camera", "advanced"]
+    assert fields(result) == ["pets", "ask_when_unsure", "meal_pictures", "camera", "advanced"]
     assert fields(result, "camera") == ["trigger", "frames", "interval"]
     assert not collapsed(result, "camera")
     assert (suggested(result, "camera", "frames"), suggested(result, "camera", "interval")) == (
@@ -154,6 +158,22 @@ async def test_a_source_with_a_camera_needs_a_trigger(
         3,
         5,
     )
+
+
+async def test_the_meal_pictures_are_among_the_entities(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    entry = await set_up(hass, aioclient_mock)
+    result = await start(hass, entry, "feeder", "image.feeder_visit", "image.feeder_meal")
+    user_input = {"meal_pictures": ["image.other"], "advanced": ADVANCED}
+    with pytest.raises(InvalidData):
+        await hass.config_entries.subentries.async_configure(result["flow_id"], user_input)
+    user_input["meal_pictures"] = ["image.feeder_meal", "image.feeder_meal"]
+    result = await hass.config_entries.subentries.async_configure(result["flow_id"], user_input)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    (subentry,) = (item for item in entry.subentries.values() if item.subentry_type == "source")
+    assert subentry.data["meal_pictures"] == ["image.feeder_meal"]
 
 
 @pytest.mark.parametrize(("kind", "every"), [("litter_box", True), ("pet_door", False)])
@@ -214,6 +234,7 @@ async def test_a_source_is_changed(
         "entities",
         "pets",
         "ask_when_unsure",
+        "meal_pictures",
         "camera",
         "advanced",
     ]
@@ -224,8 +245,10 @@ async def test_a_source_is_changed(
     assert suggested(result, "camera", "trigger") is None
     # A pet that is gone is not shown.
     assert suggested(result, "pets") == []
-    # A source added before the questions asks.
+    # A source added before the questions asks, and one added before the
+    # meals has no meal pictures.
     assert suggested(result, "ask_when_unsure") is True
+    assert suggested(result, "meal_pictures") == []
 
     changes: dict[str, Any] = {
         "name": "",
@@ -242,6 +265,13 @@ async def test_a_source_is_changed(
     result = await hass.config_entries.subentries.async_configure(result["flow_id"], changes)
     assert result["errors"] == {"base": "trigger_needed"}
     changes["camera"] |= {"trigger": "binary_sensor.fountain_motion", "frames": 2}
+    # A meal picture of an entity the source no longer has.
+    changes["meal_pictures"] = ["image.feeder"]
+    changes["entities"] = ["camera.fountain"]
+    result = await hass.config_entries.subentries.async_configure(result["flow_id"], changes)
+    assert result["errors"] == {"meal_pictures": "meal_picture_not_watched"}
+    changes["entities"] = ["image.feeder", "camera.fountain"]
+    changes["meal_pictures"] = ["image.feeder"]
     result = await hass.config_entries.subentries.async_configure(result["flow_id"], changes)
     assert (result["type"], result["reason"]) == (FlowResultType.ABORT, "reconfigure_successful")
     await hass.async_block_till_done()
@@ -250,6 +280,7 @@ async def test_a_source_is_changed(
     assert subentry.data["kind"] == "water"
     assert subentry.data["ask_when_unsure"] is False
     assert subentry.data["entities"] == ["image.feeder", "camera.fountain"]
+    assert subentry.data["meal_pictures"] == ["image.feeder"]
     assert (subentry.data["trigger"], subentry.data["frames"]) == (
         "binary_sensor.fountain_motion",
         2,

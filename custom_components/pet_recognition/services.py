@@ -80,7 +80,7 @@ async def _async_assign_visit(call: ServiceCall) -> ServiceResponse:
     if not call.return_response:
         return None
     titles = {key: subentry.title for key, subentry in pets(entry).items()}
-    return {"visit": visit_data(now, titles)}
+    return {"visit": visit_data(now, titles, entry.runtime_data.history.counts_meals(source))}
 
 
 async def async_assign(

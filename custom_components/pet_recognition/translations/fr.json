@@ -187,11 +187,13 @@
           "description": "Choisissez les animaux de {source}. Les photos déjà affichées ne sont pas analysées, seulement les nouvelles.",
           "data": {
             "pets": "Animaux attendus",
-            "ask_when_unsure": "Me demander en cas de doute"
+            "ask_when_unsure": "Me demander en cas de doute",
+            "meal_pictures": "Images de repas"
           },
           "data_description": {
             "pets": "Les animaux qui peuvent apparaître à cette source. Aucun choix signifie tous les animaux.",
-            "ask_when_unsure": "Une fois que chaque animal a des exemples, demander aux téléphones des options qui c'était quand une visite de cette source reste inconnue."
+            "ask_when_unsure": "Une fois que chaque animal a des exemples, demander aux téléphones des options qui c'était quand une visite de cette source reste inconnue.",
+            "meal_pictures": "Les entités de la source dont chaque nouvelle image veut dire un repas, comme la photo du dernier repas d'une gamelle. Avec elles, les animaux comptent par repas, et non plus par visite."
           },
           "sections": {
             "camera": {
@@ -230,12 +232,14 @@
             "kind": "Type",
             "entities": "Entités image ou caméra",
             "pets": "Animaux attendus",
-            "ask_when_unsure": "Me demander en cas de doute"
+            "ask_when_unsure": "Me demander en cas de doute",
+            "meal_pictures": "Images de repas"
           },
           "data_description": {
             "entities": "Chaque nouvelle photo d'une entité image est analysée. Une caméra prend des photos quand son déclencheur s'active.",
             "pets": "Les animaux qui peuvent apparaître à cette source. Aucun choix signifie tous les animaux.",
-            "ask_when_unsure": "Une fois que chaque animal a des exemples, demander aux téléphones des options qui c'était quand une visite de cette source reste inconnue."
+            "ask_when_unsure": "Une fois que chaque animal a des exemples, demander aux téléphones des options qui c'était quand une visite de cette source reste inconnue.",
+            "meal_pictures": "Les entités de la source dont chaque nouvelle image veut dire un repas, comme la photo du dernier repas d'une gamelle. Avec elles, les animaux comptent par repas, et non plus par visite."
           },
           "sections": {
             "camera": {
@@ -271,6 +275,7 @@
       "error": {
         "empty_name": "Saisissez un nom.",
         "entity_in_use": "L'une de ces entités est déjà utilisée par une autre source.",
+        "meal_picture_not_watched": "Choisissez les images de repas parmi les entités de la source.",
         "no_entity": "Choisissez au moins une entité image ou caméra.",
         "trigger_needed": "Choisissez un déclencheur pour les caméras."
       },

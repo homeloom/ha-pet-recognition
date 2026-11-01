@@ -4,4 +4,4 @@
 jsonschema==4.26.0
 # Needed to import Home Assistant's camera component, as Home Assistant
 # installs it only when the component loads.
-PyTurboJPEG==1.8.0
+PyTurboJPEG==2.6.1

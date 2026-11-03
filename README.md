@@ -373,6 +373,12 @@ the integration loads again, which it does at once:
   get the questions. None chosen means no questions.
 - **Ask while learning** (on): while a pet has no examples yet, ask about
   one visit at a time.
+- **Page opened by a notification** (empty): the page a tap on a question
+  opens, to correct its visit, such as a dashboard: a path such as
+  `/dashboard/pets?visit={visit}`, or a web address. `{visit}` and
+  `{source}` stand for the IDs of the visit and its source, as
+  `pet_recognition/overview` gives them; no other braces are allowed. Empty
+  opens the app.
 
 The **Recognition** section holds:
 
@@ -407,7 +413,8 @@ notifications, sent by that title, on a purple background; a doubt is a
 normal notification, and a question while learning comes without a sound.
 On Android, the icon is purple, and the questions come in their own **Pet
 Recognition** channel, whose sound and importance are set in the settings
-of the phone.
+of the phone. With a **Page opened by a notification** in the options, a
+tap on a question opens that page for its visit, on both platforms.
 
 - **While learning**, when a pet expected at the source has no examples
   yet, every visit is unknown: one question at a time is open per source,

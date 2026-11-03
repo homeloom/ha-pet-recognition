@@ -76,6 +76,8 @@ MAX_RETENTION: Final = 30
 # has no examples yet.
 CONF_PHONES: Final = "phones"
 CONF_ASK_WHILE_LEARNING: Final = "ask_while_learning"
+# The page a question's notification opens, with {visit} and {source}.
+CONF_NOTIFICATION_URL: Final = "notification_url"
 # The most pictures waiting for the engine, and kept per source.
 QUEUE_LIMIT: Final = 100
 PICTURE_LIMIT: Final = 2000

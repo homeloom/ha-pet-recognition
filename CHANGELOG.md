@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-03
+
+A tap on a question can open the page where its visit is corrected.
+
+### Added
+
+- The option **Page opened by a notification**: a path or a web address,
+  with `{visit}` and `{source}` for the IDs of the visit and its source.
+  A question's notification then opens it, on iOS and on Android. Empty,
+  the default, opens the app as before.
+- The diagnostics say whether the option is set, without the page.
+
 ## [0.10.0] - 2026-11-03
 
 A visit can be corrected to a meal, or to no meal.

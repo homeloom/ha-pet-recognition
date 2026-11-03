@@ -1,9 +1,11 @@
-"""The options of the entry: the phones to ask, and how pictures are recognized and kept."""
+"""The options of the entry: the phones to ask, the page their notifications
+open, and how pictures are recognized and kept."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import quote
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlowResult, OptionsFlow
@@ -15,6 +17,7 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    TextSelector,
 )
 
 from .const import (
@@ -23,6 +26,7 @@ from .const import (
     CONF_DETECTION_LIMIT,
     CONF_MARGIN,
     CONF_MIN_AREA,
+    CONF_NOTIFICATION_URL,
     CONF_PHONES,
     CONF_RETENTION,
     CONF_THRESHOLD,
@@ -43,7 +47,9 @@ class EntryOptions:
     """What the options set, with their defaults for an entry that never set them.
 
     `min_area` is a share of the picture, from 0 to 1. `phones` holds the
-    IDs of the mobile app devices to ask.
+    IDs of the mobile app devices to ask. `notification_url` is the page a
+    question's notification opens, with `{visit}` and `{source}` for the
+    IDs of its visit and source, or empty for none.
     """
 
     match: MatchSettings
@@ -52,6 +58,23 @@ class EntryOptions:
     retention_days: int
     phones: tuple[str, ...] = ()
     ask_while_learning: bool = True
+    notification_url: str = ""
+
+
+def notification_url(template: str, visit: str, source: str) -> str:
+    """The page that a notification about `visit` at `source` opens."""
+    return template.replace("{visit}", quote(visit, safe="")).replace(
+        "{source}", quote(source, safe="")
+    )
+
+
+def _valid_url(template: str) -> bool:
+    """Whether `template` is a path or a web address, with no placeholder
+    but `{visit}` and `{source}`."""
+    if not template.startswith(("/", "https://", "http://")):
+        return False
+    rest = template.replace("{visit}", "").replace("{source}", "")
+    return "{" not in rest and "}" not in rest
 
 
 def entry_options(entry: ConfigEntry) -> EntryOptions:
@@ -67,6 +90,7 @@ def entry_options(entry: ConfigEntry) -> EntryOptions:
         retention_days=options.get(CONF_RETENTION, DEFAULT_RETENTION),
         phones=tuple(options.get(CONF_PHONES, ())),
         ask_while_learning=options.get(CONF_ASK_WHILE_LEARNING, True),
+        notification_url=options.get(CONF_NOTIFICATION_URL, ""),
     )
 
 
@@ -81,14 +105,20 @@ class PetRecognitionOptionsFlow(OptionsFlow):
     """The options of the entry, which apply once it loads again."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Choose the phones to ask, tune the recognition, and how long pictures are kept."""
-        if user_input is not None:
+        """Choose the phones to ask and the page their notifications open,
+        tune the recognition, and how long pictures are kept."""
+        errors: dict[str, str] = {}
+        url = (user_input or {}).get(CONF_NOTIFICATION_URL, "").strip()
+        if url and not _valid_url(url):
+            errors[CONF_NOTIFICATION_URL] = "invalid_notification_url"
+        if user_input is not None and not errors:
             advanced = user_input[CONF_ADVANCED]
             return self.async_create_entry(
                 data={
                     **self.config_entry.options,
                     CONF_PHONES: list(dict.fromkeys(user_input.get(CONF_PHONES) or [])),
                     CONF_ASK_WHILE_LEARNING: bool(user_input[CONF_ASK_WHILE_LEARNING]),
+                    CONF_NOTIFICATION_URL: url,
                     CONF_THRESHOLD: float(advanced[CONF_THRESHOLD]),
                     CONF_MARGIN: float(advanced[CONF_MARGIN]),
                     CONF_MIN_AREA: float(advanced[CONF_MIN_AREA]),
@@ -105,6 +135,7 @@ class PetRecognitionOptionsFlow(OptionsFlow):
                 vol.Required(
                     CONF_ASK_WHILE_LEARNING, default=options.ask_while_learning
                 ): BooleanSelector(),
+                vol.Optional(CONF_NOTIFICATION_URL): TextSelector(),
                 vol.Required(CONF_ADVANCED): section(
                     vol.Schema(
                         {
@@ -129,9 +160,13 @@ class PetRecognitionOptionsFlow(OptionsFlow):
                 ),
             }
         )
+        suggested = {CONF_PHONES: list(options.phones)}
+        if options.notification_url:
+            suggested[CONF_NOTIFICATION_URL] = options.notification_url
         return self.async_show_form(
             step_id="init",
-            data_schema=self.add_suggested_values_to_schema(
-                schema, {CONF_PHONES: list(options.phones)}
-            ),
+            data_schema=self.add_suggested_values_to_schema(schema, user_input or suggested),
+            errors=errors,
+            # Shown as they are written in the page.
+            description_placeholders={"visit": "{visit}", "source": "{source}"},
         )

@@ -29,6 +29,7 @@ DEFAULT_OPTIONS = {
     "retention_days": 7,
     "phones": 0,
     "ask_while_learning": True,
+    "notification_url": False,
 }
 
 
@@ -42,7 +43,7 @@ async def test_the_diagnostics_of_a_connected_engine(
         "integration_version": VERSION,
         "state": "loaded",
         "engine": {
-            "version": "0.10.0",
+            "version": "0.11.0",
             "model": MODEL,
             "species": ["bird", "cat", "dog"],
             "max_bytes": 20 * 1024 * 1024,

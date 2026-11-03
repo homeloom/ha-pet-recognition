@@ -377,7 +377,8 @@ the integration loads again, which it does at once:
   opens, to correct its visit, such as a dashboard: a path such as
   `/dashboard/pets?visit={visit}`, or a web address. `{visit}` and
   `{source}` stand for the IDs of the visit and its source, as
-  `pet_recognition/overview` gives them. Empty opens the app.
+  `pet_recognition/overview` gives them; no other braces are allowed. Empty
+  opens the app.
 
 The **Recognition** section holds:
 

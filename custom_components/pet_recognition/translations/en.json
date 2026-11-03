@@ -577,7 +577,7 @@
       }
     },
     "error": {
-      "invalid_notification_url": "This is no path nor web address, or it has a placeholder other than visit and source in braces."
+      "invalid_notification_url": "This is no path nor web address, or it has braces around something other than visit and source."
     }
   },
   "selector": {

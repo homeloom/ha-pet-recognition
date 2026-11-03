@@ -14,6 +14,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.pet_recognition.diagnostics import async_get_config_entry_diagnostics
+from custom_components.pet_recognition.options import notification_url
 
 from .answers import analysis, animal, unit
 from .watching import (
@@ -142,7 +143,19 @@ async def test_pictures_are_kept_as_long_as_the_options_say(
 
 @pytest.mark.parametrize(
     "url",
-    ["pets", "/pets?visit={id}", "/pets?visit={", "/pets?visit={0}", "ftp://example/{visit}"],
+    [
+        "pets",
+        "/pets?visit={id}",
+        "/pets?visit={",
+        "/pets?visit=}",
+        "/pets?visit={0}",
+        "/pets?visit={{visit}}",
+        "/pets?visit={visit.__class__}",
+        "/pets?visit={visit.__class__.__init__.__globals__}",
+        "/pets?visit={visit:>999999999}",
+        "/pets?visit={visit!r}",
+        "ftp://example/{visit}",
+    ],
 )
 async def test_the_page_of_a_notification_is_checked(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, shown: Shown, url: str
@@ -178,3 +191,8 @@ async def test_the_page_of_a_notification_is_kept(
         {"notification_url": "https://example.org/{visit}", "advanced": CHANGED},
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
+
+
+def test_the_page_of_a_notification_takes_only_its_placeholders() -> None:
+    page = notification_url("/p?a={visit}&b={visit}&s={source}", "a/{source}", "s 1")
+    assert page == "/p?a=a%2F%7Bsource%7D&b=a%2F%7Bsource%7D&s=s%201"

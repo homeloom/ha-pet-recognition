@@ -63,7 +63,9 @@ class EntryOptions:
 
 def notification_url(template: str, visit: str, source: str) -> str:
     """The page that a notification about `visit` at `source` opens."""
-    return template.format(visit=quote(visit, safe=""), source=quote(source, safe=""))
+    return template.replace("{visit}", quote(visit, safe="")).replace(
+        "{source}", quote(source, safe="")
+    )
 
 
 def _valid_url(template: str) -> bool:
@@ -71,11 +73,8 @@ def _valid_url(template: str) -> bool:
     but `{visit}` and `{source}`."""
     if not template.startswith(("/", "https://", "http://")):
         return False
-    try:
-        notification_url(template, "visit", "source")
-    except (KeyError, IndexError, ValueError):
-        return False
-    return True
+    rest = template.replace("{visit}", "").replace("{source}", "")
+    return "{" not in rest and "}" not in rest
 
 
 def entry_options(entry: ConfigEntry) -> EntryOptions:

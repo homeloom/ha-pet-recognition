@@ -6,6 +6,25 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-03
+
+A litter box that tells which pet came can count the visits of each pet.
+
+### Added
+
+- Sources take sensor entities too, such as a litter box's date of last
+  use of each pet. A last step of the source says whose visits each
+  sensor reports, and each new value is a visit of that pet, without a
+  picture: it counts in **<pet> visits today**, is announced by
+  `visit_ended`, and shows in the overview, with no picture.
+- The diagnostics give the number of sensors of each source, and the
+  visits they reported as `reported` pictures.
+
+### Fixed
+
+- A picture time without a time zone is read in Home Assistant's time
+  zone, not the system's.
+
 ## [0.7.0] - 2026-10-31
 
 A feeder can count its meals, not every visit.

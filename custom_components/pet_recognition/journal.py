@@ -87,6 +87,8 @@ class Status(StrEnum):
     UNREADABLE = "unreadable"
     # The engine failed on it, again and again.
     FAILED = "failed"
+    # No picture: a sensor of the source reported a visit of a pet.
+    REPORTED = "reported"
 
 
 @dataclass
@@ -316,7 +318,9 @@ class Journal:
         return {record.id for record in self._last_pictures().values()} | {
             record.id
             for record in self.records
-            if not record.detections and record.source in self.every_picture
+            if not record.detections
+            and record.source in self.every_picture
+            and record.status is not Status.REPORTED
         }
 
     def last_of_pet(self, pet: str) -> Record | None:
@@ -466,6 +470,26 @@ class Journal:
         old = [other for other in mine if other.id not in protected]
         await self._changed(frames=frames, records=old[: max(len(mine) - PICTURE_LIMIT, 0)])
 
+    @callback
+    def async_add_report(self, record: Record, seen: Seen) -> None:
+        """Record a visit a sensor reported, seen as its last value.
+
+        It is recorded at once, so that the same value reported again right
+        after is known; saving follows.
+        """
+        self.seen[seen.entity] = seen
+        self.records.append(record)
+        self._hass.async_create_background_task(
+            self._async_trim(record.source), "pet_recognition save a report"
+        )
+
+    async def _async_trim(self, source: str) -> None:
+        """Save, and remove the oldest records of a source past the limit."""
+        mine = [other for other in self.records if other.source == source]
+        protected = self._protected()
+        old = [other for other in mine if other.id not in protected]
+        await self._changed(records=old[: max(len(mine) - PICTURE_LIMIT, 0)])
+
     async def async_purge(self, before: float) -> None:
         """Remove the records of pictures taken before `before`."""
         protected = self._protected(before)
@@ -554,6 +578,9 @@ class Journal:
         the latest of all at a source that only takes pictures of a pet."""
         latest: dict[str, Record] = {}
         for record in self.records:
+            if record.status is Status.REPORTED:
+                # Nothing to show: a sensor reported it.
+                continue
             if (record.detections or record.source in self.every_picture) and (
                 record.source not in latest or _order(record) > _order(latest[record.source])
             ):

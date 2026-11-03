@@ -1,6 +1,11 @@
 """Sources: take each new picture of their image entities, and analyse it.
 
-A source is a set of image or camera entities, such as a feeder's snapshot.
+A source is a set of image or camera entities, such as a feeder's snapshot,
+and of sensors that report the visits of a pet, such as a litter box's
+date of last use of each pet. Each new value of such a sensor is a visit of
+its pet, recorded without a picture: a value already seen, such as the same
+value written again after a restart, adds nothing, and neither do
+`unknown` and `unavailable`.
 Cameras take pictures when their trigger fires (see `cameras`). Each time
 an image entity shows a new picture, the picture is queued for the engine. A
 picture is new when the entity's state, the time of its last picture,
@@ -21,13 +26,14 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from collections.abc import Callable, Iterable
-from dataclasses import dataclass
+from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from homeassistant.components.camera.const import DOMAIN as CAMERA_DOMAIN
 from homeassistant.components.image import DOMAIN as IMAGE_DOMAIN
 from homeassistant.components.image import async_get_image
+from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import (
@@ -53,6 +59,7 @@ from .const import (
     CONF_LATE,
     CONF_MEAL_PICTURES,
     CONF_PETS,
+    CONF_SENSOR_PETS,
     CONF_SPECIES,
     CONF_TRIGGER,
     SUBENTRY_SOURCE,
@@ -97,6 +104,8 @@ class SourceSettings:
     interval: float
     # Whether to ask on the phones who it was, when unsure.
     ask_when_unsure: bool = True
+    # The pet each sensor reports the visits of, by entity ID.
+    sensors: Mapping[str, str] = field(default_factory=dict)
 
     @property
     def images(self) -> tuple[str, ...]:
@@ -107,6 +116,11 @@ class SourceSettings:
     def cameras(self) -> tuple[str, ...]:
         """The camera entities, which take pictures when the trigger fires."""
         return tuple(cameras(self.entities))
+
+
+def sensors(entities: Iterable[str]) -> list[str]:
+    """The sensor entities among `entities`, which report the visits of a pet."""
+    return [entity for entity in entities if _domain(entity) == SENSOR_DOMAIN]
 
 
 def cameras(entities: Iterable[str]) -> list[str]:
@@ -151,6 +165,12 @@ def source_settings(entry: ConfigEntry, subentry: ConfigSubentry) -> SourceSetti
         interval=data[CONF_INTERVAL],
         # Sources added before the questions ask.
         ask_when_unsure=data.get(CONF_ASK_WHEN_UNSURE, True),
+        # Only the sensors still watched, of pets that still exist.
+        sensors={
+            entity_id: pet
+            for entity_id, pet in data.get(CONF_SENSOR_PETS, {}).items()
+            if entity_id in sensors(data[CONF_ENTITIES]) and pet in every_pet
+        },
     )
 
 
@@ -174,23 +194,72 @@ class SourceWatcher:
         # being taken.
         self._latest: dict[str, State] = {}
         self._taking: set[str] = set()
+        # The source and pet of each sensor.
+        self._sensors: dict[str, tuple[str, str]] = {}
         for source_id, subentry in sources(entry).items():
-            for entity_id in source_settings(entry, subentry).images:
+            settings = source_settings(entry, subentry)
+            for entity_id in settings.images:
                 self._sources.setdefault(entity_id, source_id)
+            for entity_id, pet in settings.sensors.items():
+                self._sensors.setdefault(entity_id, (source_id, pet))
 
     @callback
     def async_start(self) -> CALLBACK_TYPE:
         """Follow the entities, and take what they show since they were last seen."""
         unsubscribe = async_track_state_change_event(
-            self._hass, list(self._sources), self._async_changed
+            self._hass, [*self._sources, *self._sensors], self._async_changed
         )
         for entity_id in self._sources:
             self._take(entity_id, self._hass.states.get(entity_id))
+        for entity_id in self._sensors:
+            self._report(entity_id, self._hass.states.get(entity_id))
         return unsubscribe
 
     @callback
     def _async_changed(self, event: Event[EventStateChangedData]) -> None:
-        self._take(event.data["entity_id"], event.data["new_state"])
+        entity_id = event.data["entity_id"]
+        if entity_id in self._sensors:
+            self._report(entity_id, event.data["new_state"])
+        else:
+            self._take(entity_id, event.data["new_state"])
+
+    @callback
+    def _report(self, entity_id: str, state: State | None) -> None:
+        """Record a visit for a new value of a sensor."""
+        if state is None or state.state == STATE_UNAVAILABLE:
+            return
+        seen = self._journal.seen.get(entity_id)
+        # Some integrations write "Unknown" themselves.
+        if state.state.lower() == STATE_UNKNOWN:
+            if seen is None:
+                # No value yet when the source is added: its first is a visit.
+                self._journal.async_see(Seen(entity_id, state.state, ""))
+            return
+        source_id, pet = self._sensors[entity_id]
+        sha256 = hashlib.sha256(f"{entity_id}\n{state.state}".encode()).hexdigest()
+        now = Seen(entity_id, state.state, sha256)
+        if (
+            seen is None
+            or seen.state == state.state
+            or self._journal.known(source_id, sha256)
+            or _earlier(state.state, seen.state)
+        ):
+            # The value a sensor showed when its source was added is no
+            # visit, and neither is a value it showed before, or a time
+            # before the last one it showed.
+            if seen != now:
+                self._journal.async_see(now)
+            return
+        record = Record(
+            id=new_id(),
+            source=source_id,
+            entity=entity_id,
+            taken=_taken(state),
+            sha256=sha256,
+            status=Status.REPORTED,
+            pets=(pet,),
+        )
+        self._journal.async_add_report(record, now)
 
     @callback
     def _take(self, entity_id: str, state: State | None) -> None:
@@ -236,9 +305,20 @@ class SourceWatcher:
         self._on_new()
 
 
+def _earlier(value: str, last: str) -> bool:
+    """Whether the value of a sensor is a time before its last one."""
+    when, before = dt_util.parse_datetime(value), dt_util.parse_datetime(last)
+    if when is None or before is None or (when.tzinfo is None) != (before.tzinfo is None):
+        return False
+    return when <= before
+
+
 def _taken(state: State) -> float:
-    """When the picture was taken, as far as Home Assistant knows."""
+    """When the picture was taken, or the visit reported, as far as Home
+    Assistant knows: a time without a time zone is in Home Assistant's."""
     taken: datetime = dt_util.parse_datetime(state.state) or state.last_changed
+    if taken.tzinfo is None:
+        taken = taken.replace(tzinfo=dt_util.get_default_time_zone())
     return taken.timestamp()
 
 

@@ -1,4 +1,7 @@
-"""The flow of a source: its name, its entities, and how its visits form."""
+"""The flow of a source: its name, its entities, and how its visits form.
+
+When the source has sensors, which report the visits of a pet, a last step
+says whose visits each one reports."""
 
 from __future__ import annotations
 
@@ -6,6 +9,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.components.camera.const import DOMAIN as CAMERA_DOMAIN
+from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.config_entries import (
     SOURCE_USER,
     ConfigEntry,
@@ -41,6 +45,7 @@ from .const import (
     CONF_LATE,
     CONF_MEAL_PICTURES,
     CONF_PETS,
+    CONF_SENSOR_PETS,
     CONF_TRIGGER,
     DEFAULT_FRAMES,
     DEFAULT_GAP,
@@ -51,7 +56,7 @@ from .const import (
     SUBENTRY_SOURCE,
 )
 from .pets import pets
-from .sources import cameras
+from .sources import cameras, sensors
 
 KIND_SELECTOR = SelectSelector(
     SelectSelectorConfig(
@@ -59,7 +64,7 @@ KIND_SELECTOR = SelectSelector(
     )
 )
 ENTITY_SELECTOR = EntitySelector(
-    EntitySelectorConfig(domain=["image", CAMERA_DOMAIN], multiple=True)
+    EntitySelectorConfig(domain=["image", CAMERA_DOMAIN, SENSOR_DOMAIN], multiple=True)
 )
 TRIGGER_SELECTOR = EntitySelector(EntitySelectorConfig(domain=["binary_sensor", "event"]))
 
@@ -107,6 +112,8 @@ class SourceFlow(ConfigSubentryFlow):
         self._name = ""
         self._kind = ""
         self._entities: list[str] = []
+        # The data of the source, waiting for the pets of its sensors.
+        self._data_so_far: dict[str, Any] = {}
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Name a new source, say what it is, and where its pictures come from."""
@@ -143,9 +150,8 @@ class SourceFlow(ConfigSubentryFlow):
             # The selector keeps the meal pictures among the entities.
             errors = self._check_trigger(self._entities, user_input)
             if not errors:
-                return self.async_create_entry(
-                    title=self._name, data=self._data(self._entities, user_input)
-                )
+                self._data_so_far = self._data(self._entities, user_input)
+                return await self.async_step_sensors()
         defaults: dict[str, Any] = {
             CONF_PETS: [],
             CONF_ASK_WHEN_UNSURE: True,
@@ -185,9 +191,9 @@ class SourceFlow(ConfigSubentryFlow):
             if not name:
                 errors[CONF_NAME] = "empty_name"
             if not errors:
-                return self.async_update_and_abort(
-                    self._get_entry(), subentry, title=name, data=self._data(entities, user_input)
-                )
+                self._name = name
+                self._data_so_far = self._data(entities, user_input)
+                return await self.async_step_sensors()
         data = subentry.data
         current = {
             CONF_NAME: subentry.title,
@@ -221,6 +227,42 @@ class SourceFlow(ConfigSubentryFlow):
             step_id="reconfigure",
             data_schema=self.add_suggested_values_to_schema(schema, user_input or current),
             errors=errors,
+        )
+
+    async def async_step_sensors(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Say whose visits each sensor of the source reports, then save it."""
+        data = self._data_so_far
+        watched = sensors(data[CONF_ENTITIES])
+        every_pet = pets(self._get_entry())
+        if watched and user_input is None:
+            if not every_pet:
+                return self.async_abort(reason="no_pet_for_sensors")
+            options = [
+                SelectOptionDict(value=key, label=subentry.title)
+                for key, subentry in every_pet.items()
+            ]
+            schema = vol.Schema(
+                {
+                    vol.Required(entity_id): SelectSelector(SelectSelectorConfig(options=options))
+                    for entity_id in watched
+                }
+            )
+            current: dict[str, str] = {}
+            if self.source != SOURCE_USER:
+                saved = self._get_reconfigure_subentry().data.get(CONF_SENSOR_PETS, {})
+                current = {key: pet for key, pet in saved.items() if pet in every_pet}
+            return self.async_show_form(
+                step_id="sensors",
+                data_schema=self.add_suggested_values_to_schema(schema, current),
+                description_placeholders={"source": self._name},
+            )
+        data[CONF_SENSOR_PETS] = {entity_id: (user_input or {})[entity_id] for entity_id in watched}
+        if self.source == SOURCE_USER:
+            return self.async_create_entry(title=self._name, data=data)
+        return self.async_update_and_abort(
+            self._get_entry(), self._get_reconfigure_subentry(), title=self._name, data=data
         )
 
     def _schema(self, entities: list[str], *, camera: bool, collapsed: bool = False) -> vol.Schema:

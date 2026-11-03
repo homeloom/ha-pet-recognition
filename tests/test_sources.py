@@ -571,6 +571,7 @@ async def test_the_diagnostics_count_the_pictures_of_each_source(
             "kind": "feeder",
             "images": 1,
             "cameras": 0,
+            "sensors": 0,
             "trigger": False,
             "pictures": {"analyzed": 1, "unreadable": 1},
             "pending": 0,

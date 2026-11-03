@@ -479,6 +479,8 @@ async def test_unreadable_records_are_ignored(
                 good_record(status="lost"),
                 good_record(corrected="yes"),
                 good_record(group=3),
+                good_record(meal="yes"),
+                good_record(meal=False, id="b" * 32),
                 bad_detection(scores=[]),
                 bad_detection(scores={"pet_a": "high"}),
                 bad_detection(vector="not base64!"),
@@ -490,9 +492,11 @@ async def test_unreadable_records_are_ignored(
     journal = await loaded(hass)
     assert set(journal.seen) == {"image.feeder"}
     assert [item.id for item in journal.queue] == ["d" * 32]
-    assert [item.id for item in journal.records] == ["a" * 32, "e" * 32]
+    assert [item.id for item in journal.records] == ["a" * 32, "e" * 32, "b" * 32]
     assert journal.records[1].resembles == "pet_a"
-    assert caplog.text.count("cannot be read, and is ignored") == 2 + 5 + 11
+    # Journals from before meal corrections have none.
+    assert (journal.records[0].meal, journal.records[2].meal) == (None, False)
+    assert caplog.text.count("cannot be read, and is ignored") == 2 + 5 + 12
 
 
 @pytest.mark.parametrize("data", [["a list"], {"seen": {}, "queue": "none", "pictures": 7}])

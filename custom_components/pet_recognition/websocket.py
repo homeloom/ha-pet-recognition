@@ -9,9 +9,9 @@ sources are given by their subentry IDs, which the visits and
 `pet_recognition/assign` use too.
 
 `pet_recognition/assign` corrects a visit as the `assign_visit` action does,
-for any user who may control the source's **Correct last visit**, as any
-phone of the house may already answer a question. The action stays for
-administrators.
+to pets, to a meal or not, or both, for any user who may control the
+source's **Correct last visit**, as any phone of the house may already
+answer a question. The action stays for administrators.
 """
 
 from __future__ import annotations
@@ -114,15 +114,17 @@ def ws_overview(
     {
         vol.Required("type"): ASSIGN,
         vol.Required("visit_id"): str,
-        vol.Optional("pets", default=[]): [str],
-        vol.Optional("other_animal", default=False): bool,
+        vol.Optional("pets"): [str],
+        vol.Optional("other_animal"): bool,
+        vol.Optional("meal"): bool,
     }
 )
 @websocket_api.async_response
 async def ws_assign(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    """Correct a visit to the pets given, and answer with the visit as it is now."""
+    """Correct a visit to the pets given, or to a meal or not, and answer
+    with the visit as it is now."""
     entry, source, visit = find_visit(hass, msg["visit_id"], None)
     control = er.async_get(hass).async_get_entity_id(
         "select", DOMAIN, f"{entry.entry_id}_{source}_correct_last_visit"
@@ -132,15 +134,19 @@ async def ws_assign(
         control is None or not user.permissions.check_entity(control, POLICY_CONTROL)
     ):
         raise Unauthorized(context=connection.context(msg), entity_id=control)
+    if not {"pets", "other_animal", "meal"} & msg.keys():
+        raise invalid("nothing_to_correct")
     keys = {subentry.subentry_id: key for key, subentry in pets(entry).items()}
-    chosen = []
-    for pet_id in msg["pets"]:
-        if pet_id not in keys:
-            raise invalid("unknown_pet_id", pet_id=pet_id)
-        chosen.append(keys[pet_id])
-    if msg["other_animal"]:
-        chosen.append(OTHER_ANIMAL)
-    now = await async_assign(entry, source, visit, chosen)
+    chosen: list[str] | None = None
+    if "pets" in msg or "other_animal" in msg:
+        chosen = []
+        for pet_id in msg.get("pets", []):
+            if pet_id not in keys:
+                raise invalid("unknown_pet_id", pet_id=pet_id)
+            chosen.append(keys[pet_id])
+        if msg.get("other_animal", False):
+            chosen.append(OTHER_ANIMAL)
+    now = await async_assign(entry, source, visit, chosen, msg.get("meal"))
     ended = now.id in _ended(entry, source)
     shown = _visit(hass, connection, entry, now, ended, _paths(entry, source))
     connection.send_result(msg["id"], {"visit": shown})

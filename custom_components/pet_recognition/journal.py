@@ -143,6 +143,8 @@ class Record:
     # of its group.
     corrected: bool = False
     group: str = ""
+    # Corrected to a meal, or to no meal, with the pictures of its visit.
+    meal: bool | None = None
 
 
 @dataclass
@@ -377,6 +379,14 @@ class Journal:
                 record.group = correction.group
                 for detection in record.detections:
                     detection.vector = None
+                self._rows.pop(record.id, None)
+        await self._changed()
+
+    async def async_correct_meal(self, pictures: Collection[str], meal: bool) -> None:
+        """Say whether the pictures of a visit are a meal, whatever their entities."""
+        for record in self.records:
+            if record.id in pictures:
+                record.meal = meal
                 self._rows.pop(record.id, None)
         await self._changed()
 
@@ -657,6 +667,7 @@ def _record_row(record: Record) -> dict[str, Any]:
         "resembles": record.resembles,
         "corrected": record.corrected,
         "group": record.group,
+        "meal": record.meal,
         "detections": [
             {
                 "species": detection.species,
@@ -792,6 +803,10 @@ def _record(value: Mapping[str, Any]) -> Record:
     corrected, group = value.get("corrected", False), value.get("group", "")
     if not isinstance(corrected, bool) or not isinstance(group, str):
         raise ValueError("a correction cannot be read")
+    # Journals from before meal corrections have none.
+    meal = value.get("meal")
+    if meal is not None and not isinstance(meal, bool):
+        raise ValueError("a meal correction cannot be read")
     return Record(
         id=_id(value["id"]),
         source=_text(value["source"]),
@@ -804,6 +819,7 @@ def _record(value: Mapping[str, Any]) -> Record:
         resembles=None if resembles is None else _text(resembles),
         corrected=corrected,
         group=group,
+        meal=meal,
     )
 
 

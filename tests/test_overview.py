@@ -342,7 +342,7 @@ async def test_assign(
     assert going_on.pets == (PET_C, OTHER_ANIMAL)
 
     # Nobody: unknown, and no longer unsure.
-    answer = await send(client, "assign", visit_id=of_b.id)
+    answer = await send(client, "assign", visit_id=of_b.id, pets=[])
     visit_now = answer["result"]["visit"]
     assert (visit_now["pets"], visit_now["unsure"]) == ([], False)
     await settle(hass)
@@ -393,16 +393,16 @@ async def test_assign_is_for_who_controls_the_source(
     unsure = journal(entry).of(source_id(entry))[-3]
     aioclient_mock.post(f"{URL}/v1/embed", json=embedding(*UNSURE))
     read_only = await user_client(hass, hass_ws_client, "system-read-only")
-    answer = await send(read_only, "assign", visit_id=unsure.id)
+    answer = await send(read_only, "assign", visit_id=unsure.id, pets=[])
     assert (answer["success"], answer["error"]["code"]) == (False, "unauthorized")
 
     # Without the select of the source, only administrators may.
     er.async_get(hass).async_remove(SELECT)
     user = await user_client(hass, hass_ws_client, "system-users")
-    answer = await send(user, "assign", visit_id=unsure.id)
+    answer = await send(user, "assign", visit_id=unsure.id, pets=[])
     assert (answer["success"], answer["error"]["code"]) == (False, "unauthorized")
     assert not unsure.corrected
-    answer = await ask("assign", visit_id=unsure.id)
+    answer = await ask("assign", visit_id=unsure.id, pets=[])
     assert answer["success"]
     await settle(hass)
     assert unsure.corrected

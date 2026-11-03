@@ -262,7 +262,7 @@ async def test_assign_visit(
     assert to_review(hass) == ("0", None)
 
     # By its ID and its source, to unknown.
-    response = await assign(hass, visit_id=second.id, source=SELECT)
+    response = await assign(hass, visit_id=second.id, source=SELECT, pets=[])
     assert (response["visit"]["pets"], response["visit"]["unsure"]) == ([], False)
     assert (second.pets, second.corrected) == ((), True)
     assert learned(entry) == []
@@ -271,10 +271,13 @@ async def test_assign_visit(
 @pytest.mark.parametrize(
     ("data", "key"),
     [
-        ({"visit_id": "f" * 32}, "unknown_visit"),
-        ({"source": "sensor.pet_recognition_pending_pictures"}, "unknown_source"),
-        ({"source": "image.not_registered"}, "unknown_source"),
-        ({"source": "sensor.feeder_visits_to_review", "visit_id": "f" * 32}, "unknown_visit"),
+        ({"visit_id": "f" * 32, "pets": []}, "unknown_visit"),
+        ({"source": "sensor.pet_recognition_pending_pictures", "pets": []}, "unknown_source"),
+        ({"source": "image.not_registered", "pets": []}, "unknown_source"),
+        (
+            {"source": "sensor.feeder_visits_to_review", "visit_id": "f" * 32, "pets": []},
+            "unknown_visit",
+        ),
         ({"source": "sensor.feeder_visits_to_review", "pets": ["not a device"]}, "unknown_pet"),
         ({"source": "sensor.feeder_visits_to_review", "pets": ["source"]}, "unknown_pet"),
     ],
@@ -308,7 +311,7 @@ async def test_assign_visit_needs_a_visit(
 ) -> None:
     entry = await asking(hass, aioclient_mock, shown, freezer, phones, phone_ids=[])
     with pytest.raises(ServiceValidationError) as raised:
-        await assign(hass, source=TO_REVIEW)
+        await assign(hass, source=TO_REVIEW, pets=[])
     assert raised.value.translation_key == "no_visit"
     # Neither a visit nor a source.
     with pytest.raises(vol.Invalid):
@@ -319,7 +322,7 @@ async def test_assign_visit_needs_a_visit(
     await hass.config_entries.async_unload(entry.entry_id)
     assert entry.state is ConfigEntryState.NOT_LOADED
     with pytest.raises(ServiceValidationError) as raised:
-        await assign(hass, visit_id=record.id)
+        await assign(hass, visit_id=record.id, pets=[])
     assert raised.value.translation_key == "unknown_visit"
 
 
@@ -335,5 +338,5 @@ async def test_assign_visit_is_for_administrators(
     await visit(hass, aioclient_mock, shown, freezer, 1)
     (record,) = journal(entry).of(source_id(entry))
     with pytest.raises(Unauthorized):
-        await assign(hass, hass_read_only_user, visit_id=record.id)
+        await assign(hass, hass_read_only_user, visit_id=record.id, pets=[])
     assert not record.corrected

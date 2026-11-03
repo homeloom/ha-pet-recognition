@@ -480,6 +480,12 @@
     },
     "unknown_pet_id": {
       "message": "{pet_id} n'est pas un animal de cette entrée Pet Recognition."
+    },
+    "no_meals": {
+      "message": "Cette source ne compte pas les repas : ses visites ne peuvent pas être corrigées en repas ou non."
+    },
+    "nothing_to_correct": {
+      "message": "Indiquez les animaux, l'autre animal ou le repas à corriger."
     }
   },
   "issues": {
@@ -590,7 +596,7 @@
   "services": {
     "assign_visit": {
       "name": "Attribuer une visite",
-      "description": "Dit quels animaux étaient à une visite, ce qui corrige toutes ses photos et apprend l'animal d'un seul animal nommé.",
+      "description": "Dit quels animaux étaient à une visite, ce qui corrige toutes ses photos et apprend l'animal d'un seul animal nommé, ou si c'était un repas.",
       "fields": {
         "visit_id": {
           "name": "Visite",
@@ -602,11 +608,15 @@
         },
         "pets": {
           "name": "Animaux",
-          "description": "Les animaux qui étaient là. Aucun, sans l'autre animal, dit qu'elle est inconnue."
+          "description": "Les animaux qui étaient là. Aucun, sans l'autre animal, dit qu'elle est inconnue. Sans animaux ni autre animal, les animaux restent ceux de la visite."
         },
         "other_animal": {
           "name": "Autre animal",
           "description": "Un animal qui n'est aucun des animaux déclarés était là aussi."
+        },
+        "meal": {
+          "name": "Repas",
+          "description": "Pour une source qui compte les repas, indique si la visite était un repas. Sans animaux ni autre animal, les animaux restent ceux de la visite."
         }
       }
     }

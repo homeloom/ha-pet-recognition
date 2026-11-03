@@ -544,14 +544,16 @@
     "step": {
       "init": {
         "title": "Options",
-        "description": "Changes apply once the integration loads again. Questions on the phones go through the Home Assistant companion app, with the names of the pets and the source, the time, and a link to the picture: the picture itself stays in Home Assistant.",
+        "description": "Changes apply once the integration loads again. Questions on the phones go through the Home Assistant companion app, with the names of the pets and the source, the time, and a link to the picture: the picture itself stays in Home Assistant. **Page opened by a notification** can say which visit to open: `{visit}` and `{source}` stand for the IDs of the visit and its source, as `pet_recognition/overview` gives them, such as `/dashboard/pets?visit={visit}`.",
         "data": {
           "phones": "Phones to ask",
-          "ask_while_learning": "Ask while learning"
+          "ask_while_learning": "Ask while learning",
+          "notification_url": "Page opened by a notification"
         },
         "data_description": {
           "phones": "Each phone gets a notification when a visit stays unknown, with the picture and a button per pet. None chosen means no questions.",
-          "ask_while_learning": "While a pet has no examples yet, ask about one visit at a time, so that the answers teach the first examples."
+          "ask_while_learning": "While a pet has no examples yet, ask about one visit at a time, so that the answers teach the first examples.",
+          "notification_url": "The page a tap on a question opens, to correct its visit: a path or a web address. Empty opens the app."
         },
         "sections": {
           "advanced": {
@@ -573,6 +575,9 @@
           }
         }
       }
+    },
+    "error": {
+      "invalid_notification_url": "This is no path nor web address, or it has a placeholder other than visit and source in braces."
     }
   },
   "selector": {

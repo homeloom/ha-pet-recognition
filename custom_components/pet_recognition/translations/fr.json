@@ -544,14 +544,16 @@
     "step": {
       "init": {
         "title": "Options",
-        "description": "Les changements s'appliquent une fois l'intégration rechargée. Les questions sur les téléphones passent par l'application compagnon de Home Assistant, avec les noms des animaux et de la source, l'heure et un lien vers la photo : la photo elle-même reste dans Home Assistant.",
+        "description": "Les changements s'appliquent une fois l'intégration rechargée. Les questions sur les téléphones passent par l'application compagnon de Home Assistant, avec les noms des animaux et de la source, l'heure et un lien vers la photo : la photo elle-même reste dans Home Assistant. **Page ouverte par une notification** peut dire quelle visite ouvrir : `{visit}` et `{source}` remplacent les identifiants de la visite et de sa source, tels que `pet_recognition/overview` les donne, par exemple `/dashboard/pets?visit={visit}`.",
         "data": {
           "phones": "Téléphones à interroger",
-          "ask_while_learning": "Interroger pendant l'apprentissage"
+          "ask_while_learning": "Interroger pendant l'apprentissage",
+          "notification_url": "Page ouverte par une notification"
         },
         "data_description": {
           "phones": "Chaque téléphone reçoit une notification quand une visite reste inconnue, avec la photo et un bouton par animal. Aucun choisi veut dire aucune question.",
-          "ask_while_learning": "Tant qu'un animal n'a pas d'exemple, interroger sur une visite à la fois, pour que les réponses donnent les premiers exemples."
+          "ask_while_learning": "Tant qu'un animal n'a pas d'exemple, interroger sur une visite à la fois, pour que les réponses donnent les premiers exemples.",
+          "notification_url": "La page qu'ouvre un appui sur une question, pour corriger sa visite : un chemin ou une adresse web. Vide ouvre l'application."
         },
         "sections": {
           "advanced": {
@@ -573,6 +575,9 @@
           }
         }
       }
+    },
+    "error": {
+      "invalid_notification_url": "Ce n'est ni un chemin ni une adresse web, ou il contient entre accolades autre chose que visit et source."
     }
   },
   "selector": {

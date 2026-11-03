@@ -18,6 +18,8 @@ from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
 from custom_components.pet_recognition.const import DOMAIN
 from custom_components.pet_recognition.core.doubts import Kind, State
 from custom_components.pet_recognition.diagnostics import async_get_config_entry_diagnostics
+from custom_components.pet_recognition.journal import Asked
+from custom_components.pet_recognition.questions import Asker
 from custom_components.pet_recognition.views import PICTURE_URL, signed_picture_url
 
 from .answers import CROP, animal, unit
@@ -483,3 +485,63 @@ async def test_the_picture_of_a_question_only(
     assert (await client.get(signed.replace("?", "%3F"))).status == HTTPStatus.UNAUTHORIZED
     journal(entry).crop_path(asked.crop).unlink()
     assert (await client.get(signed)).status == HTTPStatus.NOT_FOUND
+
+
+async def test_a_notification_opens_the_page_of_its_visit(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    shown: Shown,
+    freezer: FrozenDateTimeFactory,
+    phones: Phones,
+) -> None:
+    entry = await asking(
+        hass,
+        aioclient_mock,
+        shown,
+        freezer,
+        phones,
+        notification_url="/dashboard/pets?visit={visit}&source={source}",
+    )
+    await come(hass, aioclient_mock, shown, freezer, 1, animal(embedding=UNSURE))
+    await until(hass, freezer, START + timedelta(minutes=1) + ENDS)
+    (shown_visit,) = entry.runtime_data.history.visits(source_id(entry))
+    data = phones.sent[0][2]
+    page = f"/dashboard/pets?visit={shown_visit.id}&source={source_id(entry)}"
+    # Opened on iOS and on Android.
+    assert (data["url"], data["clickAction"]) == (page, page)
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+    assert diagnostics["options"]["notification_url"] is True
+    assert "/dashboard/pets" not in str(diagnostics)
+
+
+async def test_a_notification_without_its_visit_opens_the_app(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    shown: Shown,
+    freezer: FrozenDateTimeFactory,
+    phones: Phones,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    entry = await asking(
+        hass, aioclient_mock, shown, freezer, phones, notification_url="/pets?visit={visit}"
+    )
+    phones.failing.add("Phone 2")
+    await come(hass, aioclient_mock, shown, freezer, 1, animal(embedding=UNSURE))
+    await until(hass, freezer, START + timedelta(minutes=1) + ENDS)
+    assert [(name, "url" in data) for name, _message, data in phones.sent] == [("Phone 1", True)]
+    # Its visit gone by the time the notification is written again.
+    history = entry.runtime_data.history
+    write = Asker._notification
+
+    async def without_visits(self: Asker, asked: Asked) -> tuple[str, str, dict[str, Any]]:
+        with monkeypatch.context() as patched:
+            patched.setattr(history, "visits", lambda source: [])
+            return await write(self, asked)
+
+    monkeypatch.setattr(Asker, "_notification", without_visits)
+    phones.failing.clear()
+    await until(hass, freezer, START + timedelta(minutes=3) + ENDS)
+    assert [(name, "url" in data) for name, _message, data in phones.sent] == [
+        ("Phone 1", True),
+        ("Phone 2", False),
+    ]

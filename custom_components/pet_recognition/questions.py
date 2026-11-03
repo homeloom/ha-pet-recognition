@@ -51,7 +51,7 @@ from .files import new_id
 from .history import History
 from .journal import Asked, Journal
 from .learning import Learner
-from .options import entry_options
+from .options import entry_options, notification_url
 from .pets import pets
 from .phones import PhoneMissingError, async_clear, async_notify, phone_users
 from .sources import SourceSettings
@@ -340,6 +340,18 @@ class Asker:
             path = FRAME_URL.format(entry_id=entry_id, picture_id=doubt.shown)
         if path is not None:
             data["image"] = signed_picture_url(self._hass, path)
+        # The page to correct the visit, opened by a tap on the notification.
+        template = entry_options(self._entry).notification_url
+        visit = next(
+            (
+                visit
+                for visit in self._history.visits(doubt.source)
+                if any(picture.id == doubt.shown for picture in visit.pictures)
+            ),
+            None,
+        )
+        if template and visit is not None:
+            data["url"] = data["clickAction"] = notification_url(template, visit.id, doubt.source)
         return texts["question_title"], message, data
 
     @callback

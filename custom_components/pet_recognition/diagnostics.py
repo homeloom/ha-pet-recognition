@@ -62,6 +62,8 @@ async def async_get_config_entry_diagnostics(
             # Counted instead of named.
             "phones": len(options.phones),
             "ask_while_learning": options.ask_while_learning,
+            # Said, without the page.
+            "notification_url": bool(options.notification_url),
         },
         "connected": coordinator.last_update_success,
         "last_error": None if error is None else type(error.__cause__ or error).__name__,

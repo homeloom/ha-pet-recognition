@@ -1,11 +1,12 @@
 """Repairs of the sources: entities renamed, or gone.
 
 When the user renames an entity of a source, or its trigger, the source
-follows it. When one is gone, removed from Home Assistant, a repair says so
-once Home Assistant has started, and its fix chooses the entities the
-source uses now. An entity counts as gone when the entity registry does not
-know it and it has no state, so that an entity whose integration is still
-loading, or one without a unique ID, is not.
+follows it, as a pet follows the entity whose picture shows it. When one
+is gone, removed from Home Assistant, a repair says so once Home Assistant
+has started, and its fix chooses the entities the source uses now. An
+entity counts as gone when the entity registry does not know it and it has
+no state, so that an entity whose integration is still loading, or one
+without a unique ID, is not.
 """
 
 from __future__ import annotations
@@ -21,7 +22,15 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.start import async_at_started
 
-from .const import CONF_ENTITIES, CONF_MEAL_PICTURES, CONF_SENSOR_PETS, CONF_TRIGGER, DOMAIN
+from .const import (
+    CONF_ENTITIES,
+    CONF_MEAL_PICTURES,
+    CONF_PORTRAIT_ENTITY,
+    CONF_SENSOR_PETS,
+    CONF_TRIGGER,
+    DOMAIN,
+)
+from .pets import pets
 from .source_flow import ENTITY_SELECTOR, TRIGGER_SELECTOR, entity_errors, trigger_errors
 from .sources import cameras, sources
 
@@ -62,6 +71,11 @@ def async_follow_renames(hass: HomeAssistant) -> None:
 
 @callback
 def _async_rename(hass: HomeAssistant, entry: ConfigEntry, old: str, new: str) -> None:
+    for subentry in pets(entry).values():
+        if subentry.data.get(CONF_PORTRAIT_ENTITY) == old:
+            hass.config_entries.async_update_subentry(
+                entry, subentry, data={**subentry.data, CONF_PORTRAIT_ENTITY: new}
+            )
     for subentry in sources(entry).values():
         data = subentry.data
         if old not in data[CONF_ENTITIES] and data[CONF_TRIGGER] != old:

@@ -42,7 +42,7 @@ async def test_the_diagnostics_of_a_connected_engine(
         "integration_version": VERSION,
         "state": "loaded",
         "engine": {
-            "version": "0.8.0",
+            "version": "0.9.0",
             "model": MODEL,
             "species": ["bird", "cat", "dog"],
             "max_bytes": 20 * 1024 * 1024,
@@ -124,8 +124,14 @@ async def test_the_diagnostics_number_the_pets_instead_of_naming_them(
         await store.async_add("a" * 32, Candidate(CROP, tuple(unit(*vector)), model), Origin.UPLOAD)
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
     assert diagnostics["pets"] == [
-        {"pet": "pet_1", "species": "cat", "examples": {"old@1": 1, MODEL: 2}, "learned": 0},
-        {"pet": "pet_2", "species": "dog", "examples": {}, "learned": 0},
+        {
+            "pet": "pet_1",
+            "species": "cat",
+            "examples": {"old@1": 1, MODEL: 2},
+            "learned": 0,
+            "picture": None,
+        },
+        {"pet": "pet_2", "species": "dog", "examples": {}, "learned": 0, "picture": None},
     ]
     assert "Pet A" not in str(diagnostics)
     assert "a" * 32 not in str(diagnostics)

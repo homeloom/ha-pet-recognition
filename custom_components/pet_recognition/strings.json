@@ -92,6 +92,7 @@
             "photo": "Upload a photo",
             "folder": "Add the photos of a media folder",
             "capture": "Take a photo from a camera or image",
+            "portrait": "Choose its picture",
             "remove": "Remove examples",
             "rename": "Rename",
             "done": "Done"
@@ -129,6 +130,38 @@
             "examples": "Examples"
           }
         },
+        "portrait": {
+          "title": "Picture of {pet}",
+          "description": "The picture that shows {pet}, such as on a dashboard, and on visits without a picture. Shown now: {portrait}",
+          "menu_options": {
+            "portrait_entity": "Use the picture of an entity",
+            "portrait_photo": "Upload a photo",
+            "portrait_example": "Use one of its examples",
+            "portrait_none": "Show no picture",
+            "change": "Back"
+          }
+        },
+        "portrait_entity": {
+          "title": "Picture of an entity",
+          "description": "Choose an entity that shows a picture of {pet}, such as its sensor in the integration of its devices. Its picture is used as it changes. Submit without an entity to go back.",
+          "data": {
+            "entity_id": "Entity"
+          }
+        },
+        "portrait_photo": {
+          "title": "Upload a photo of {pet}",
+          "description": "A JPEG, PNG or WebP photo where {pet} is the only animal. The picture is the part of the photo around {pet}. Submit without a photo to go back.",
+          "data": {
+            "photo": "Photo"
+          }
+        },
+        "portrait_example": {
+          "title": "Use an example of {pet}",
+          "description": "Choose the example whose picture shows {pet}. The picture is kept even if the example is removed later. Submit without an example to go back.\n\n{pictures}",
+          "data": {
+            "example": "Example"
+          }
+        },
         "rename": {
           "title": "Rename the pet",
           "data": {
@@ -144,8 +177,10 @@
         "duplicate_picture": "This photo is almost the same as another example.",
         "empty_name": "Enter a name.",
         "engine_busy": "The engine is busy. Try again in a moment.",
+        "example_gone": "This example was removed meanwhile. Choose another one.",
         "folder_not_found": "This folder no longer exists. Choose another one.",
         "no_animal": "No animal of this species was found in the photo.",
+        "no_entity_picture": "This entity shows no picture. Choose another one.",
         "no_media_folder": "No folder of the media holds photos yet. Upload some in **Media** first.",
         "picture_too_large": "The photo is too large for the engine.",
         "several_animals": "Several animals of this species are in the photo. Use a photo where the pet is alone.",

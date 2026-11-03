@@ -1,5 +1,6 @@
 """The crops of the examples, for administrators, and the crops and pictures
-kept, for the phones, the dashboards and the entities."""
+kept and the photos of the pets, for the phones, the dashboards and the
+entities."""
 
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ from .const import DOMAIN
 from .examples import EXAMPLE_ID
 from .files import FILE_ID, content_type
 from .journal import Journal
+from .portraits import PORTRAIT_URL, async_read_portrait, portrait_files
 
 EXAMPLE_URL = "/api/pet_recognition/example/{entry_id}/{example_id}"
 PICTURE_URL = "/api/pet_recognition/picture/{entry_id}/{crop_id}"
@@ -51,6 +53,11 @@ def picture_paths(entry_id: str, journal: Journal, source: str) -> dict[str, str
         elif record.id in kept:
             paths[record.id] = FRAME_URL.format(entry_id=entry_id, picture_id=record.id)
     return paths
+
+
+def signed_flow_url(hass: HomeAssistant, path: str) -> str:
+    """A relative URL of a picture for a form, signed for its user for half an hour."""
+    return async_sign_path(hass, path, SIGNED_FOR)
 
 
 def signed_picture_url(hass: HomeAssistant, path: str) -> str:
@@ -166,3 +173,23 @@ class FrameView(HomeAssistantView):
         except FileNotFoundError:
             return web.Response(status=HTTPStatus.NOT_FOUND)
         return web.Response(body=picture, content_type=content_type(picture), headers=NO_STORE)
+
+
+class PortraitView(HomeAssistantView):
+    """Serves the photo of a pet, to any user, such as a dashboard's."""
+
+    url = PORTRAIT_URL
+    name = "api:pet_recognition:portrait"
+    requires_auth = True
+
+    async def get(self, request: web.Request, entry_id: str, file_id: str) -> web.Response:
+        """The photo, or 404 for anything that is not the photo of a pet."""
+        hass = request.app[KEY_HASS]
+        entry = _loaded(hass, entry_id)
+        if entry is None or file_id not in portrait_files(entry):
+            return web.Response(status=HTTPStatus.NOT_FOUND)
+        try:
+            photo = await async_read_portrait(hass, entry_id, file_id)
+        except FileNotFoundError:
+            return web.Response(status=HTTPStatus.NOT_FOUND)
+        return web.Response(body=photo, content_type="image/jpeg", headers=NO_STORE)

@@ -21,6 +21,11 @@ updates:
     commit-message:
       prefix: chore
       include: scope
+    ignore:
+      # Pinned to the version of Home Assistant's camera integration at the
+      # oldest Home Assistant supported, whose tests refuse anything newer.
+      # It moves with that minimum, by hand.
+      - dependency-name: "pyturbojpeg"
     groups:
       python:
         patterns: ["*"]

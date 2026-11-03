@@ -16,8 +16,8 @@ from .journal import Journal, Record
 
 
 def picture(record: Record, meal_pictures: Collection[str] = ()) -> Picture:
-    """What the grouping of visits needs to know of a record, taken from
-    an entity of `meal_pictures` or not."""
+    """What the grouping of visits needs to know of a record: a meal when
+    corrected to one, or else when taken from an entity of `meal_pictures`."""
     return Picture(
         id=record.id,
         source=record.source,
@@ -27,7 +27,7 @@ def picture(record: Record, meal_pictures: Collection[str] = ()) -> Picture:
         resembles=record.resembles,
         corrected=record.corrected,
         group=record.group,
-        meal=record.entity in meal_pictures,
+        meal=record.entity in meal_pictures if record.meal is None else record.meal,
     )
 
 

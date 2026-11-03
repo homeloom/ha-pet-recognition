@@ -480,6 +480,12 @@
     },
     "unknown_pet_id": {
       "message": "{pet_id} is no pet of that Pet Recognition entry."
+    },
+    "no_meals": {
+      "message": "This source does not count meals, so its visits cannot be corrected to a meal or not."
+    },
+    "nothing_to_correct": {
+      "message": "Give the pets, the other animal or the meal to correct."
     }
   },
   "issues": {
@@ -590,7 +596,7 @@
   "services": {
     "assign_visit": {
       "name": "Assign visit",
-      "description": "Says which pets were at a visit, which corrects all its pictures and teaches the animal of a single pet.",
+      "description": "Says which pets were at a visit, which corrects all its pictures and teaches the animal of a single pet, or whether it was a meal.",
       "fields": {
         "visit_id": {
           "name": "Visit",
@@ -602,11 +608,15 @@
         },
         "pets": {
           "name": "Pets",
-          "description": "The pets that were there. None, without the other animal, says it is unknown."
+          "description": "The pets that were there. None, without the other animal, says it is unknown. Without pets nor the other animal, the pets stay as they are."
         },
         "other_animal": {
           "name": "Other animal",
           "description": "An animal that is none of the pets was there too."
+        },
+        "meal": {
+          "name": "Meal",
+          "description": "At a source that counts meals, whether the visit was a meal. Without pets nor the other animal, the pets stay as they are."
         }
       }
     }

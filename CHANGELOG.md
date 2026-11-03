@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-03
+
+A visit can be corrected to a meal, or to no meal.
+
+### Added
+
+- `pet_recognition/assign` and **Assign visit** take `meal`, at a source
+  that counts meals: the visit is a meal, or not, whatever its pictures'
+  entities, and the counts and `visit_corrected` follow. A picture that
+  joins the visit later is told by its entity again.
+
+### Changed
+
+- `pet_recognition/assign` and **Assign visit** without `pets` nor
+  `other_animal` leave the pets of the visit as they are, and need at
+  least one of `pets`, `other_animal` and `meal`. Before, no pets said the
+  visit was unknown; an empty `pets` still does.
+
 ## [0.9.0] - 2026-11-03
 
 Each pet can have a picture that shows it, such as on visits without one.

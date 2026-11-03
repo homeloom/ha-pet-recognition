@@ -231,8 +231,10 @@ corrects the run. The **Assign visit** action (`pet_recognition.assign_visit`,
 for administrators) corrects a whole visit: give its `visit_id`, from the
 **Visit** events or **Visits to review**, or an entity of its source for its
 latest visit, and the pet devices that were there, with `other_animal` for
-an animal that is none of them. No pet says it is unknown. It can answer
-with the visit as it is now:
+an animal that is none of them. No pet says it is unknown. At a source
+that counts meals, `meal` says whether the visit was a meal: without
+`pets` nor `other_animal`, the pets stay as they are. It can answer with
+the visit as it is now:
 
 ```yaml
 action: pet_recognition.assign_visit
@@ -248,6 +250,10 @@ visit ended. A single pet teaches the animal, as an answer does (see
 [Questions on the phones](#questions-on-the-phones)). The long-term
 statistics of a past day keep their value: a correction changes the journal,
 the counts of today and the events.
+
+A meal corrected holds for the pictures of the visit then. A picture that
+joins the visit later is a meal or not by its entity again, as in
+[Sources](#sources).
 
 ### Dashboards
 
@@ -310,8 +316,10 @@ while they still are.
 `pet_recognition/assign` corrects a visit as the **Assign visit** action
 does, for administrators and for any user allowed to control the source's
 **Correct last visit**. It takes the `visit_id`, the `pets` by their
-subentry IDs (none says it is unknown), and `other_animal`, and answers
-with the visit as it is now, as the overview gives it.
+subentry IDs (none says it is unknown), `other_animal`, and `meal`, and
+answers with the visit as it is now, as the overview gives it. Without
+`pets` nor `other_animal`, the pets stay as they are; it needs at least one
+of `pets`, `other_animal` and `meal`.
 
 ```json
 {"id": 2, "type": "pet_recognition/assign", "visit_id": "<visit ID>",
@@ -319,12 +327,18 @@ with the visit as it is now, as the overview gives it.
 ```
 
 ```json
+{"id": 3, "type": "pet_recognition/assign", "visit_id": "<visit ID>", "meal": false}
+```
+
+```json
 {"visit": {"id": "<visit ID>", "source": "<source subentry ID>", "...": "..."}}
 ```
 
 An unknown visit or pet fails with the `home_assistant_error` code and
-the translation keys `unknown_visit` and `unknown_pet_id`; a user who may
-not control the source gets `unauthorized`.
+the translation keys `unknown_visit` and `unknown_pet_id`, a `meal` at a
+source that does not count meals with `no_meals`, and nothing to correct
+with `nothing_to_correct`; a user who may not control the source gets
+`unauthorized`.
 
 ### Pictures kept
 

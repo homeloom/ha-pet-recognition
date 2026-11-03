@@ -5,7 +5,9 @@ give it, or by an entity of its source for the latest visit there. The
 pets are their devices; none, and not the other animal, says it is
 unknown. Every picture of the visit is corrected, which teaches its animal
 when a single pet is named. This is how a visit of several pets, or an old
-one, is corrected.
+one, is corrected. At a source that counts meals, `meal` says whether the
+visit was one; without pets nor the other animal, the pets stay as they
+are.
 
 The dashboards correct visits with the `pet_recognition/assign` command
 instead (see `websocket`), which any user who controls the source may use.
@@ -41,17 +43,20 @@ ATTR_VISIT_ID = "visit_id"
 ATTR_SOURCE = "source"
 ATTR_PETS = "pets"
 ATTR_OTHER_ANIMAL = "other_animal"
+ATTR_MEAL = "meal"
 
 ASSIGN_VISIT_SCHEMA = vol.All(
     vol.Schema(
         {
             vol.Optional(ATTR_VISIT_ID): cv.string,
             vol.Optional(ATTR_SOURCE): cv.entity_id,
-            vol.Optional(ATTR_PETS, default=[]): vol.All(cv.ensure_list, [cv.string]),
-            vol.Optional(ATTR_OTHER_ANIMAL, default=False): cv.boolean,
+            vol.Optional(ATTR_PETS): vol.All(cv.ensure_list, [cv.string]),
+            vol.Optional(ATTR_OTHER_ANIMAL): cv.boolean,
+            vol.Optional(ATTR_MEAL): cv.boolean,
         }
     ),
     cv.has_at_least_one_key(ATTR_VISIT_ID, ATTR_SOURCE),
+    cv.has_at_least_one_key(ATTR_PETS, ATTR_OTHER_ANIMAL, ATTR_MEAL),
 )
 
 
@@ -68,15 +73,18 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
 
 async def _async_assign_visit(call: ServiceCall) -> ServiceResponse:
-    """Correct a visit to the pets given, and answer with the visit as it is now."""
+    """Correct a visit to the pets given, or to a meal or not, and answer
+    with the visit as it is now."""
     hass = call.hass
     entry, source, visit = find_visit(
         hass, call.data.get(ATTR_VISIT_ID), call.data.get(ATTR_SOURCE)
     )
-    chosen = [_pet(hass, entry, device_id) for device_id in call.data[ATTR_PETS]]
-    if call.data[ATTR_OTHER_ANIMAL]:
-        chosen.append(OTHER_ANIMAL)
-    now = await async_assign(entry, source, visit, chosen)
+    chosen: list[str] | None = None
+    if ATTR_PETS in call.data or ATTR_OTHER_ANIMAL in call.data:
+        chosen = [_pet(hass, entry, device_id) for device_id in call.data.get(ATTR_PETS, [])]
+        if call.data.get(ATTR_OTHER_ANIMAL, False):
+            chosen.append(OTHER_ANIMAL)
+    now = await async_assign(entry, source, visit, chosen, call.data.get(ATTR_MEAL))
     if not call.return_response:
         return None
     titles = {key: subentry.title for key, subentry in pets(entry).items()}
@@ -84,12 +92,25 @@ async def _async_assign_visit(call: ServiceCall) -> ServiceResponse:
 
 
 async def async_assign(
-    entry: PetRecognitionConfigEntry, source: str, visit: Visit, chosen: list[str]
+    entry: PetRecognitionConfigEntry,
+    source: str,
+    visit: Visit,
+    chosen: list[str] | None,
+    meal: bool | None = None,
 ) -> Visit:
-    """Correct every picture of `visit` to the pets `chosen`, and return the visit now."""
+    """Correct every picture of `visit` to the pets `chosen`, unless None,
+    and to a meal or not, unless None, and return the visit now."""
     data = entry.runtime_data
-    correction = correct(Run(list(visit.pictures), visit.pets), chosen)
-    await data.learner.async_correct(correction, Origin.CORRECTION)
+    if meal is not None and not data.history.counts_meals(source):
+        raise invalid("no_meals")
+    pictures = {picture.id for picture in visit.pictures}
+    if meal is not None:
+        await data.journal.async_correct_meal(pictures, meal)
+    if chosen is None:
+        data.counter.async_corrected(source, pictures)
+    else:
+        correction = correct(Run(list(visit.pictures), visit.pets), chosen)
+        await data.learner.async_correct(correction, Origin.CORRECTION)
     return next(item for item in data.history.visits(source) if item.id == visit.id)
 
 

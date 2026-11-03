@@ -14,6 +14,8 @@ assign_visit:
           integration: pet_recognition
           multiple: true
     other_animal:
-      default: false
+      selector:
+        boolean:
+    meal:
       selector:
         boolean:

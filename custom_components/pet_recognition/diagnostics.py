@@ -83,6 +83,7 @@ async def async_get_config_entry_diagnostics(
                 "kind": subentry.data[CONF_KIND],
                 "images": len(settings.images),
                 "cameras": len(settings.cameras),
+                "sensors": len(settings.sensors),
                 # A trigger kept without cameras is not watched.
                 "trigger": bool(settings.cameras) and settings.trigger is not None,
                 "pictures": dict(

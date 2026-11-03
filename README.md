@@ -89,7 +89,8 @@ in the background, the photos you gave first.
 
 Add each place where pets are seen with **Add source**: a name, a kind
 (feeder, water fountain, litter box, pet door or other), and one or more
-image or camera entities, such as a feeder's snapshot or a garden camera.
+image, camera or sensor entities, such as a feeder's snapshot, a garden
+camera, or a litter box's date of last use of each pet.
 Then choose the pets expected there, or none for every pet, and whether to
 **ask when unsure** (see [Questions on the phones](#questions-on-the-phones)).
 The **Visits**
@@ -113,6 +114,22 @@ must differ from the pictures of the source, waiting or recorded. Pictures
 wait for the engine while it is busy or stopped, and survive a restart. A
 picture the engine cannot read, or fails on three times while it otherwise
 answers, is recorded as such and never blocks the others.
+
+### Sensors
+
+Some devices tell which pet came themselves, such as a litter box that
+weighs the pets and gives each one's date of last use. Add such sensors to
+a source, one per pet, and a last step asks whose visits each one reports.
+Each new value of a sensor is then a visit of its pet, recorded without a
+picture or the engine, and counted like the others. A value the sensor
+showed before adds nothing, such as the same date written again after a
+restart, and neither does `unknown` or `unavailable` (whatever its case),
+nor a time before the last one. A time without a time zone is read in
+Home Assistant's. The value a sensor shows when it is added is not a
+visit, unless it has none yet.
+
+A device that cannot tell which pet came reports nothing for that visit:
+such visits are not counted.
 
 ### Cameras
 

@@ -48,7 +48,14 @@ async def test_a_renamed_entity_is_followed(
         aioclient_mock,
         shown,
         pet(PET_A),
-        source(FEEDER, "camera.garden", trigger=MOTION, meal_pictures=[FEEDER]),
+        source(
+            FEEDER,
+            "camera.garden",
+            "sensor.pet_a_last_use",
+            trigger=MOTION,
+            meal_pictures=[FEEDER],
+            sensor_pets={FEEDER: PET_A, "sensor.pet_a_last_use": PET_A},
+        ),
         source("image.bowl", title="Bowl"),
     )
     registry = er.async_get(hass)
@@ -59,9 +66,17 @@ async def test_a_renamed_entity_is_followed(
         entry.subentries[issue_id(entry, title).removeprefix("source_entity_missing_")]
         for title in ("Feeder", "Bowl")
     )
-    assert feeder.data["entities"] == ["image.kitchen_feeder", "camera.garden"]
+    assert feeder.data["entities"] == [
+        "image.kitchen_feeder",
+        "camera.garden",
+        "sensor.pet_a_last_use",
+    ]
     assert feeder.data["trigger"] == "binary_sensor.kitchen_motion"
     assert feeder.data["meal_pictures"] == ["image.kitchen_feeder"]
+    assert feeder.data["sensor_pets"] == {
+        "image.kitchen_feeder": PET_A,
+        "sensor.pet_a_last_use": PET_A,
+    }
     assert bowl.data["entities"] == ["image.bowl"]
     # The entry was loaded again, and follows the new name.
     await show(hass, shown, b"first picture", 1, entity_id="image.kitchen_feeder")

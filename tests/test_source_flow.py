@@ -119,6 +119,7 @@ async def test_a_source_of_images_is_added(
         "pets": ["a" * 32],
         "ask_when_unsure": True,
         "meal_pictures": [],
+        "sensor_pets": {},
         "gap": 10,
         "late": 0,
         "every_picture_shows_a_pet": False,
@@ -310,3 +311,63 @@ async def test_a_camera_removed_keeps_its_settings(
     data = entry.subentries[subentry_id].data
     assert data["entities"] == ["image.garden"]
     assert (data["trigger"], data["frames"]) == ("binary_sensor.garden_motion", 2)
+
+
+async def test_a_source_with_sensors_says_whose_visits_they_report(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    entry = await set_up(hass, aioclient_mock, pet("a" * 32, "Pet A"), pet("b" * 32, "Pet B"))
+    sensors = ["sensor.pet_a_last_use", "sensor.pet_b_last_use"]
+    result = await start(hass, entry, "litter_box", *sensors)
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {"advanced": ADVANCED}
+    )
+    assert (result["type"], result["step_id"]) == (FlowResultType.FORM, "sensors")
+    assert result["description_placeholders"] == {"source": "Feeder"}
+    assert fields(result) == sensors
+    options = result["data_schema"].schema[sensors[0]].config["options"]
+    assert options == [{"value": "a" * 32, "label": "Pet A"}, {"value": "b" * 32, "label": "Pet B"}]
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {sensors[0]: "a" * 32, sensors[1]: "b" * 32}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    (subentry_id,) = (
+        key for key, item in entry.subentries.items() if item.subentry_type == "source"
+    )
+    assert entry.subentries[subentry_id].data["sensor_pets"] == {
+        sensors[0]: "a" * 32,
+        sensors[1]: "b" * 32,
+    }
+
+    # Changing the source shows the pets chosen, and saves the new ones.
+    result = await entry.start_subentry_reconfigure_flow(hass, subentry_id)
+    changes = {
+        "name": "Box",
+        "kind": "litter_box",
+        "entities": sensors,
+        "pets": [],
+        "ask_when_unsure": True,
+        "camera": {"frames": 6, "interval": 10},
+        "advanced": ADVANCED,
+    }
+    result = await hass.config_entries.subentries.async_configure(result["flow_id"], changes)
+    assert result["step_id"] == "sensors"
+    assert suggested(result, sensors[1]) == "b" * 32
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {sensors[0]: "b" * 32, sensors[1]: "a" * 32}
+    )
+    assert (result["type"], result["reason"]) == (FlowResultType.ABORT, "reconfigure_successful")
+    await hass.async_block_till_done()
+    subentry = entry.subentries[subentry_id]
+    assert subentry.title == "Box"
+    assert subentry.data["sensor_pets"] == {sensors[0]: "b" * 32, sensors[1]: "a" * 32}
+
+
+async def test_sensors_need_a_pet(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    entry = await set_up(hass, aioclient_mock)
+    result = await start(hass, entry, "litter_box", "sensor.pet_a_last_use")
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {"advanced": ADVANCED}
+    )
+    assert (result["type"], result["reason"]) == (FlowResultType.ABORT, "no_pet_for_sensors")

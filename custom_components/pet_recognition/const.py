@@ -11,6 +11,9 @@ MIN_KEY_LENGTH: Final = 16
 # The subentry of a pet, and its data.
 SUBENTRY_PET: Final = "pet"
 CONF_SPECIES: Final = "species"
+# The picture that shows a pet: an entity's, or a photo of the pet kept.
+CONF_PORTRAIT_ENTITY: Final = "portrait_entity"
+CONF_PORTRAIT_FILE: Final = "portrait_file"
 # The species a pet can be, which the engine detects.
 SPECIES: Final = ("cat", "dog", "bird")
 

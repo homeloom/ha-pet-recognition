@@ -3,8 +3,10 @@
 `pet_recognition/overview` gives, to any user, the pets, the sources and the
 visits of a period: yesterday and today by default, never before the days
 the pictures are kept. Each visit has a link to its best crop, signed for
-that user for half an hour. Pets and sources are given by their subentry
-IDs, which the visits and `pet_recognition/assign` use too.
+that user for half an hour, and each pet the picture that shows it, if
+any: its photo, signed alike, or the picture of its entity. Pets and
+sources are given by their subentry IDs, which the visits and
+`pet_recognition/assign` use too.
 
 `pet_recognition/assign` corrects a visit as the `assign_visit` action does,
 for any user who may control the source's **Correct last visit**, as any
@@ -20,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 import voluptuous as vol
 from homeassistant.auth.permissions.const import POLICY_CONTROL
 from homeassistant.components import websocket_api
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import Unauthorized
 from homeassistant.helpers import config_validation as cv
@@ -32,6 +35,7 @@ from .core.matching import OTHER_ANIMAL
 from .core.visits import Run, Visit
 from .options import entry_options
 from .pets import pets
+from .portraits import entity_portrait, portrait_path
 from .services import async_assign, find_visit, invalid, loaded_entries
 from .sources import source_settings, sources
 from .views import picture_paths, signed_url
@@ -77,6 +81,7 @@ def ws_overview(
                 "name": subentry.title,
                 "species": subentry.data[CONF_SPECIES],
                 "device_id": devices.get(subentry.subentry_id),
+                "picture": _portrait(hass, connection, entry, subentry),
             }
             for subentry in pets(entry).values()
         ]
@@ -139,6 +144,18 @@ async def ws_assign(
     ended = now.id in _ended(entry, source)
     shown = _visit(hass, connection, entry, now, ended, _paths(entry, source))
     connection.send_result(msg["id"], {"visit": shown})
+
+
+def _portrait(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    entry: PetRecognitionConfigEntry,
+    pet: ConfigSubentry,
+) -> str | None:
+    """What shows a pet: its photo kept, signed for the user, or its entity's picture."""
+    if path := portrait_path(entry.entry_id, pet):
+        return signed_url(hass, path, connection.refresh_token_id)
+    return entity_portrait(hass, pet)
 
 
 def _in(visit: Visit, start: datetime, end: datetime) -> bool:

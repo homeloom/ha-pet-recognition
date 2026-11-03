@@ -92,6 +92,7 @@
             "photo": "Téléverser une photo",
             "folder": "Ajouter les photos d'un dossier de Médias",
             "capture": "Prendre une photo avec une caméra ou une image",
+            "portrait": "Choisir sa photo de profil",
             "remove": "Supprimer des exemples",
             "rename": "Renommer",
             "done": "Terminé"
@@ -129,6 +130,38 @@
             "examples": "Exemples"
           }
         },
+        "portrait": {
+          "title": "Photo de profil de {pet}",
+          "description": "La photo qui montre {pet}, par exemple sur un tableau de bord, et sur les passages sans photo. Photo actuelle : {portrait}",
+          "menu_options": {
+            "portrait_entity": "Utiliser l'image d'une entité",
+            "portrait_photo": "Téléverser une photo",
+            "portrait_example": "Utiliser un de ses exemples",
+            "portrait_none": "Ne pas afficher de photo",
+            "change": "Retour"
+          }
+        },
+        "portrait_entity": {
+          "title": "Image d'une entité",
+          "description": "Choisissez une entité qui affiche une photo de {pet}, par exemple son capteur dans l'intégration de ses appareils. Son image est suivie quand elle change. Validez sans entité pour revenir en arrière.",
+          "data": {
+            "entity_id": "Entité"
+          }
+        },
+        "portrait_photo": {
+          "title": "Téléverser une photo de {pet}",
+          "description": "Une photo JPEG, PNG ou WebP où {pet} est le seul animal. La photo de profil est la partie de la photo autour de {pet}. Validez sans photo pour revenir en arrière.",
+          "data": {
+            "photo": "Photo"
+          }
+        },
+        "portrait_example": {
+          "title": "Utiliser un exemple de {pet}",
+          "description": "Choisissez l'exemple dont l'image montre {pet}. La photo est gardée même si l'exemple est supprimé plus tard. Validez sans exemple pour revenir en arrière.\n\n{pictures}",
+          "data": {
+            "example": "Exemple"
+          }
+        },
         "rename": {
           "title": "Renommer l'animal",
           "data": {
@@ -144,8 +177,10 @@
         "duplicate_picture": "Cette photo est presque identique à un autre exemple.",
         "empty_name": "Saisissez un nom.",
         "engine_busy": "Le moteur est occupé. Réessayez dans un instant.",
+        "example_gone": "Cet exemple a été supprimé entre-temps. Choisissez-en un autre.",
         "folder_not_found": "Ce dossier n'existe plus. Choisissez-en un autre.",
         "no_animal": "Aucun animal de cette espèce n'a été trouvé sur la photo.",
+        "no_entity_picture": "Cette entité n'affiche pas d'image. Choisissez-en une autre.",
         "no_media_folder": "Aucun dossier des médias ne contient encore de photos. Téléversez-en d'abord dans **Médias**.",
         "picture_too_large": "La photo est trop grande pour le moteur.",
         "several_animals": "Plusieurs animaux de cette espèce sont sur la photo. Utilisez une photo où l'animal est seul.",

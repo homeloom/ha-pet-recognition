@@ -14,6 +14,7 @@ from .const import CONF_KIND, CONF_SPECIES, DOMAIN
 from .core.matching import Example
 from .options import entry_options
 from .pets import pets
+from .portraits import portrait_kind
 from .sources import source_settings, sources
 
 
@@ -74,6 +75,8 @@ async def async_get_config_entry_diagnostics(
                 "species": subentry.data[CONF_SPECIES],
                 "examples": _count(store.gallery.of(key)),
                 "learned": sum(not example.uploaded for example in store.gallery.of(key)),
+                # What shows the pet, without its address.
+                "picture": portrait_kind(subentry),
             }
             for number, (key, subentry) in enumerate(pets(entry).items(), start=1)
         ],

@@ -129,18 +129,21 @@ async def test_the_overview(
             "name": "Pet a",
             "species": "cat",
             "device_id": device(hass, entry, PET_A),
+            "picture": None,
         },
         {
             "id": pets[PET_B],
             "name": "Pet b",
             "species": "cat",
             "device_id": device(hass, entry, PET_B),
+            "picture": None,
         },
         {
             "id": pets[PET_C],
             "name": "Pet c",
             "species": "dog",
             "device_id": device(hass, entry, PET_C),
+            "picture": None,
         },
     ]
     assert result["sources"] == [

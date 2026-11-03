@@ -74,8 +74,27 @@ analyze them or the pet is full. An engine that cannot be reached stops
 the batch.
 
 A pet's gear button (**Change pet**) adds photos, one or several at once,
-removes examples (shown with their pictures), or renames the pet. A pet without examples cannot be
+chooses its picture, removes examples (shown with their pictures), or
+renames the pet. A pet without examples cannot be
 recognized, and a repair says so.
+
+**Choose its picture** sets the picture that shows the pet on
+dashboards, such as on its visits without a picture of their own, like
+those a litter box's sensors report:
+
+- **Use the picture of an entity**: any entity that shows a picture of
+  the pet, such as its sensor in the integration of its devices. The
+  picture follows the entity as it changes, and its renames.
+- **Upload a photo**: a JPEG, PNG or WebP photo where the pet is the only
+  animal; the picture is the engine's crop of the pet. It is not an
+  example.
+- **Use one of its examples**: the crop of an example, kept even if the
+  example is removed later.
+- **Show no picture**.
+
+A photo kept this way is stored under `pet_recognition/` in the
+configuration directory, and deleted when the pet is shown otherwise or
+removed.
 
 Examples are kept in Home Assistant's storage, and their crops under
 `pet_recognition/` in the configuration directory, never in `www`. Each
@@ -249,7 +268,8 @@ while they still are.
 {
   "pets": [
     {"id": "<pet subentry ID>", "name": "Pet a", "species": "cat",
-     "device_id": "<device ID>"}
+     "device_id": "<device ID>",
+     "picture": "/api/pet_recognition/portrait/<entry ID>/<photo ID>?authSig=<signature>"}
   ],
   "sources": [
     {"id": "<source subentry ID>", "name": "Feeder", "kind": "feeder",
@@ -272,6 +292,10 @@ while they still are.
   chosen. `visit_entity` is its **Visit** event entity, and `null` when it
   is not registered. `counts_meals` says it has meal pictures.
 - `device_id` is `null` when the device was removed.
+- A pet's `picture` is the picture chosen to show it: its photo kept, as a
+  relative URL signed for the user for 30 minutes, or the picture its
+  entity shows now, as that entity gives it. It is `null` without one, or
+  while the entity shows none.
 - Visits are sorted by `start`, times are in UTC. `ended` is false while a
   picture can still join the visit. `pets` are sorted by their key and
   leave out a pet that was removed. `unsure` says part of the visit is
@@ -321,7 +345,7 @@ a source deletes its journal and crops.
 ### Renamed and missing entities
 
 When you rename an entity of a source, or its trigger, the source follows
-the new name. When one is removed from Home Assistant, a repair names the
+the new name, and so does a pet shown with the picture of an entity. When one is removed from Home Assistant, a repair names the
 source once Home Assistant has started, and its **Fix** chooses the
 entities the source uses now.
 

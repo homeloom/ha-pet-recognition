@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-03
+
+Each pet can have a picture that shows it, such as on visits without one.
+
+### Added
+
+- **Change pet** has **Choose its picture**: the picture of an entity,
+  such as the pet's sensor in the integration of its devices, the crop of
+  the pet in an uploaded photo, or the crop of one of its examples.
+- Each pet of `pet_recognition/overview` has a `picture`: its photo kept,
+  signed for the user, or the picture its entity shows now, or `null`.
+- A pet follows the renames of the entity whose picture shows it.
+- The diagnostics say what shows each pet (`photo`, `entity` or `null`),
+  without any address.
+
 ## [0.8.0] - 2026-11-03
 
 A litter box that tells which pet came can count the visits of each pet.

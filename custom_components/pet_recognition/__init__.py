@@ -30,11 +30,12 @@ from .learning import Learner, Rematcher
 from .options import entry_options
 from .pets import Reembedder, async_check_examples, async_delete_pet_issues, pets
 from .phones import async_check_phones, async_delete_phone_issues
+from .portraits import async_keep_portraits
 from .questions import Asker, async_clear_questions
 from .repairs import async_delete_source_issues, async_follow_renames, async_watch_entities
 from .services import async_setup_services
 from .sources import Analyzer, SourceWatcher, source_settings, sources
-from .views import ExampleView, FrameView, PictureView
+from .views import ExampleView, FrameView, PictureView, PortraitView
 from .websocket import async_setup_websocket
 
 PLATFORMS = [
@@ -71,6 +72,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.http.register_view(ExampleView())
     hass.http.register_view(PictureView())
     hass.http.register_view(FrameView())
+    hass.http.register_view(PortraitView())
     async_follow_renames(hass)
     async_setup_services(hass)
     async_setup_websocket(hass)
@@ -99,6 +101,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: PetRecognitionConfigEntr
     # The examples of pets removed meanwhile. The other animal is no subentry.
     await examples.async_keep_pets({*pets(entry), OTHER_ANIMAL})
     async_check_examples(hass, entry, examples)
+    # The photos of pets removed, or shown otherwise since.
+    await async_keep_portraits(hass, entry)
     entry.async_on_unload(
         examples.async_add_listener(lambda: async_check_examples(hass, entry, examples))
     )

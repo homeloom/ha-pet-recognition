@@ -17,6 +17,7 @@ In a pet's settings, each change is stored at once.
 from __future__ import annotations
 
 import asyncio
+import html
 import zipfile
 from collections.abc import Mapping
 from contextlib import ExitStack
@@ -57,6 +58,8 @@ from yarl import URL
 
 from .batches import STOPS, Batch, Summary, archive_batch, folder_batch, media_folders
 from .const import (
+    CONF_PORTRAIT_ENTITY,
+    CONF_PORTRAIT_FILE,
     CONF_SPECIES,
     DOMAIN,
     EXAMPLE_LIMIT,
@@ -74,12 +77,20 @@ from .engine import (
     EngineError,
     engine_url,
 )
-from .examples import Candidate, Origin, stored_vector
+from .examples import Candidate, ExampleStore, Origin, stored_vector
 from .files import new_id
 from .options import PetRecognitionOptionsFlow
 from .pets import PictureError, async_candidate, async_capture
+from .portraits import (
+    async_portrait_saved,
+    async_save_portrait,
+    entity_picture,
+    entity_portrait,
+    portrait_kind,
+    portrait_path,
+)
 from .source_flow import SourceFlow
-from .views import signed_example_url
+from .views import signed_example_url, signed_flow_url
 
 if TYPE_CHECKING:
     from . import PetRecognitionData
@@ -89,6 +100,7 @@ KEY_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
 PHOTO_SELECTOR = FileSelector(
     FileSelectorConfig(accept="image/jpeg,image/png,image/webp,.zip,application/zip")
 )
+PORTRAIT_SELECTOR = FileSelector(FileSelectorConfig(accept="image/jpeg,image/png,image/webp"))
 CAMERA_SELECTOR = EntitySelector(EntitySelectorConfig(domain=["camera", "image"]))
 SPECIES_SELECTOR = SelectSelector(
     SelectSelectorConfig(
@@ -99,6 +111,7 @@ SPECIES_SELECTOR = SelectSelector(
 CONF_PHOTO = "photo"
 CONF_FOLDER = "folder"
 CONF_EXAMPLES = "examples"
+CONF_EXAMPLE = "example"
 
 
 def _clean_url(value: str) -> str | None:
@@ -299,6 +312,17 @@ def _read_upload(hass: HomeAssistant, file_id: str, max_bytes: int) -> bytes | B
         stack.close()
 
 
+def _read_photo(hass: HomeAssistant, file_id: str, max_bytes: int) -> bytes:
+    """The bytes of an uploaded photo, if it is not too large for the engine."""
+    try:
+        with process_uploaded_file(hass, file_id) as path:
+            if path.stat().st_size > max_bytes:
+                raise PictureError("picture_too_large")
+            return path.read_bytes()
+    except (OSError, ValueError) as err:
+        raise PictureError("upload_failed") from err
+
+
 class PetFlow(ConfigSubentryFlow):
     """Add a pet and teach it from photos, or change a pet."""
 
@@ -398,7 +422,7 @@ class PetFlow(ConfigSubentryFlow):
             )
         return self.async_show_menu(
             step_id="change",
-            menu_options=["photo", "folder", "capture", "remove", "rename", "done"],
+            menu_options=["photo", "folder", "capture", "portrait", "remove", "rename", "done"],
             description_placeholders=placeholders,
         )
 
@@ -594,16 +618,7 @@ class PetFlow(ConfigSubentryFlow):
         if user_input is not None:
             await store.async_remove(user_input.get(CONF_EXAMPLES, []))
             return self._menu()
-        entry_id = self._get_entry().entry_id
-        options: list[SelectOptionDict] = []
-        pictures: list[str] = []
-        for number, example in enumerate(store.gallery.of(self._key), start=1):
-            added = dt_util.as_local(dt_util.utc_from_timestamp(example.added))
-            options.append(
-                SelectOptionDict(value=example.id, label=f"{number}. {added:%Y-%m-%d %H:%M}")
-            )
-            url = signed_example_url(self.hass, entry_id, example.id)
-            pictures.append(f'{number}.&nbsp;<img src="{url}" alt="{number}" height="96">')
+        options, pictures = self._examples(store)
         schema = vol.Schema(
             {
                 vol.Optional(CONF_EXAMPLES, default=[]): SelectSelector(
@@ -614,11 +629,157 @@ class PetFlow(ConfigSubentryFlow):
         return self.async_show_form(
             step_id="remove",
             data_schema=schema,
-            description_placeholders={
-                "pet": self._name,
-                "pictures": " ".join(pictures) or "-",
-            },
+            description_placeholders={"pet": self._name, "pictures": pictures},
         )
+
+    def _examples(self, store: ExampleStore) -> tuple[list[SelectOptionDict], str]:
+        """The pet's examples to choose from, and their pictures, numbered alike."""
+        entry_id = self._get_entry().entry_id
+        options: list[SelectOptionDict] = []
+        pictures: list[str] = []
+        for number, example in enumerate(store.gallery.of(self._key), start=1):
+            added = dt_util.as_local(dt_util.utc_from_timestamp(example.added))
+            options.append(
+                SelectOptionDict(value=example.id, label=f"{number}. {added:%Y-%m-%d %H:%M}")
+            )
+            url = signed_example_url(self.hass, entry_id, example.id)
+            pictures.append(f'{number}.&nbsp;<img src="{url}" alt="{number}" height="96">')
+        return options, " ".join(pictures) or "-"
+
+    async def async_step_portrait(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Choose the picture that shows the pet, such as on a dashboard."""
+        if self._get_entry().state is not ConfigEntryState.LOADED:
+            return self.async_abort(reason="entry_not_loaded")
+        subentry = self._get_reconfigure_subentry()
+        options = ["portrait_entity", "portrait_photo"]
+        if self._count():
+            options.append("portrait_example")
+        if portrait_kind(subentry):
+            options.append("portrait_none")
+        options.append("change")
+        shown = "-"
+        if path := portrait_path(self._get_entry().entry_id, subentry):
+            shown = self._img(signed_flow_url(self.hass, path))
+        elif picture := entity_portrait(self.hass, subentry):
+            shown = self._img(picture)
+        return self.async_show_menu(
+            step_id="portrait",
+            menu_options=options,
+            description_placeholders={"pet": self._name, "portrait": shown},
+        )
+
+    def _img(self, url: str) -> str:
+        """A picture of the pet, for the description of a form."""
+        return f'<img src="{html.escape(url)}" alt="{html.escape(self._name)}" height="96">'
+
+    async def async_step_portrait_entity(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Show the pet with the picture of an entity, such as its sensor in
+        the integration of its devices, or go back without one."""
+        errors: dict[str, str] = {}
+        if user_input is not None and not user_input.get(CONF_ENTITY_ID):
+            return await self.async_step_portrait()
+        if user_input is not None:
+            if entity_picture(self.hass, user_input[CONF_ENTITY_ID]):
+                return self._save_portrait({CONF_PORTRAIT_ENTITY: user_input[CONF_ENTITY_ID]})
+            errors[CONF_ENTITY_ID] = "no_entity_picture"
+        current = self._get_reconfigure_subentry().data.get(CONF_PORTRAIT_ENTITY)
+        schema = vol.Schema({vol.Optional(CONF_ENTITY_ID): EntitySelector()})
+        return self.async_show_form(
+            step_id="portrait_entity",
+            data_schema=self.add_suggested_values_to_schema(
+                schema, user_input or ({CONF_ENTITY_ID: current} if current else {})
+            ),
+            description_placeholders={"pet": self._name},
+            errors=errors,
+        )
+
+    async def async_step_portrait_photo(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Show the pet with the crop of the pet in an uploaded photo, or go
+        back without one."""
+        errors: dict[str, str] = {}
+        if user_input is not None and not user_input.get(CONF_PHOTO):
+            return await self.async_step_portrait()
+        if user_input is not None:
+            try:
+                coordinator = self._data().coordinator
+                if (info := coordinator.data) is None:
+                    raise PictureError("cannot_connect")
+                photo = await self.hass.async_add_executor_job(
+                    _read_photo, self.hass, user_input[CONF_PHOTO], info.max_bytes
+                )
+                candidate = await async_candidate(coordinator, photo, self._species)
+            except PictureError as err:
+                errors["base"] = err.reason
+            else:
+                return await self._async_keep_portrait(candidate.crop)
+        return self.async_show_form(
+            step_id="portrait_photo",
+            data_schema=vol.Schema({vol.Optional(CONF_PHOTO): PORTRAIT_SELECTOR}),
+            description_placeholders={"pet": self._name},
+            errors=errors,
+        )
+
+    async def async_step_portrait_example(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Show the pet with the crop of one of its examples, or go back without one."""
+        try:
+            store = self._data().examples
+        except PictureError:
+            return self.async_abort(reason="entry_not_loaded")
+        errors: dict[str, str] = {}
+        if user_input is not None and not user_input.get(CONF_EXAMPLE):
+            return await self.async_step_portrait()
+        if user_input is not None:
+            try:
+                if store.gallery.get(user_input[CONF_EXAMPLE]) is None:
+                    raise FileNotFoundError
+                crop = await store.async_read_crop(user_input[CONF_EXAMPLE])
+            except FileNotFoundError:
+                errors["base"] = "example_gone"
+            else:
+                return await self._async_keep_portrait(crop)
+        options, pictures = self._examples(store)
+        schema = vol.Schema(
+            {vol.Optional(CONF_EXAMPLE): SelectSelector(SelectSelectorConfig(options=options))}
+        )
+        return self.async_show_form(
+            step_id="portrait_example",
+            data_schema=schema,
+            description_placeholders={"pet": self._name, "pictures": pictures},
+            errors=errors,
+        )
+
+    async def async_step_portrait_none(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Show the pet without a picture."""
+        return self._save_portrait({})
+
+    async def _async_keep_portrait(self, photo: bytes) -> SubentryFlowResult:
+        """Keep a photo of the pet, and show the pet with it."""
+        file_id = await async_save_portrait(self.hass, self._get_entry().entry_id, photo)
+        try:
+            return self._save_portrait({CONF_PORTRAIT_FILE: file_id})
+        finally:
+            async_portrait_saved(self.hass, file_id)
+
+    def _save_portrait(self, portrait: dict[str, str]) -> SubentryFlowResult:
+        """Save what shows the pet, which the setup that follows uses, and
+        where it deletes the photo kept before, if any."""
+        subentry = self._get_reconfigure_subentry()
+        data = {
+            key: value
+            for key, value in subentry.data.items()
+            if key not in (CONF_PORTRAIT_ENTITY, CONF_PORTRAIT_FILE)
+        }
+        return self.async_update_and_abort(self._get_entry(), subentry, data={**data, **portrait})
 
     async def async_step_rename(
         self, user_input: dict[str, Any] | None = None

@@ -555,7 +555,15 @@ async def test_a_menu_shown_again_keeps_its_choices(
     result = await entry.start_subentry_reconfigure_flow(hass, subentry_id)
     result = await hass.config_entries.subentries.async_configure(result["flow_id"])
     assert (result["type"], result["step_id"]) == (FlowResultType.MENU, "change")
-    assert result["menu_options"] == ["photo", "folder", "capture", "remove", "rename", "done"]
+    assert result["menu_options"] == [
+        "photo",
+        "folder",
+        "capture",
+        "portrait",
+        "remove",
+        "rename",
+        "done",
+    ]
 
 
 @pytest.mark.parametrize(

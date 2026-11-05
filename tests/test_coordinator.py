@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 
 import pytest
@@ -72,6 +73,19 @@ async def test_a_stopped_engine_turns_the_sensor_off_and_raises_a_repair_later(
     assert hass.states.get(SENSOR).state == STATE_ON
     assert entry.runtime_data.coordinator.failing_since is None
     assert not issue_registry.issues
+
+
+async def test_an_engine_that_stops_after_answering_logs_an_error(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    answer(aioclient_mock, json=info(version="0.0.0"))
+    await set_up(hass)
+    answer(aioclient_mock, exc=ClientError("refused"))
+    await later(hass, freezer, 1)
+    assert [record for record in caplog.records if record.levelno >= logging.ERROR]
 
 
 @pytest.mark.parametrize(

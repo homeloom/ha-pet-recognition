@@ -2,7 +2,9 @@
 
 The entry loads even while the engine is stopped: the coordinator then fails
 its updates, the connectivity sensor turns off, and after a quarter of an
-hour without a good answer a repair says so. A refused key starts the
+hour without a good answer a repair says so. An engine that has not answered
+yet since the entry loaded, as while its app starts after Home Assistant,
+logs no error. A refused key starts the
 reauthentication flow, and polling waits for the new key. An engine that no
 longer serves this integration's API, or of another release than the
 integration, gets a repair that says which side to update.
@@ -83,6 +85,12 @@ class EngineCoordinator(DataUpdateCoordinator[EngineInfo]):
             raise _update_failed("not_an_engine", err) from err
         except EngineConnectionError as err:
             self._unreachable()
+            if self.data is None:
+                # The engine has not answered since the entry loaded: its app
+                # may still be starting, as when the host boots, so this is no
+                # error. The connectivity sensor says it at once, a repair
+                # does once it lasts, and the coordinator logs when it answers.
+                self.last_update_success = False
             raise _update_failed("cannot_connect", err) from err
         except EngineError as err:
             # Something answers, but not as an engine: another service at the

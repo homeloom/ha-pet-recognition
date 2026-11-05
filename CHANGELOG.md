@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-11-05
+
+### Fixed
+
+- An engine that does not answer yet when the integration loads, as while
+  its app starts after Home Assistant when the host boots, no longer logs an
+  error. The connectivity sensor still turns off at once, and the repair
+  still comes after a quarter of an hour.
+
 ## [0.11.0] - 2026-11-03
 
 A tap on a question can open the page where its visit is corrected.

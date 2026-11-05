@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import logging
+
+import pytest
 from aiohttp import ClientError
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import STATE_OFF, STATE_ON
@@ -38,6 +41,15 @@ async def test_the_entry_loads_while_the_engine_is_stopped(
     assert entry.state is ConfigEntryState.LOADED
     assert entry.runtime_data.coordinator.data is None
     assert hass.states.get(SENSOR).state == STATE_OFF
+
+
+async def test_an_engine_still_starting_logs_no_error(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, caplog: pytest.LogCaptureFixture
+) -> None:
+    entry = configured(hass)
+    aioclient_mock.get(f"{URL}/v1/info", exc=ClientError("starting"))
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    assert not [record for record in caplog.records if record.levelno >= logging.ERROR]
 
 
 async def test_the_entry_loads_beside_a_wrong_engine(
